@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  caddy:
+    image: lucaslorentz/caddy-docker-proxy:ci-alpine
+    container_name: aura-caddy
+    restart: unless-stopped
+    ports:
+      # Use custom loopback address 127.0.0.2
+      - "127.0.0.2:80:80"
+      - "127.0.0.2:443:443"
+      - "127.0.0.2:443:443/udp" # HTTP/3
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./certs:/certs:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - aura-proxy
+    environment:
+      - CADDY_INGRESS_NETWORKS=aura-proxy
+    labels:
+      caddy: ""
+
+  whoami:
+    image: traefik/whoami
+    container_name: aura-whoami
+    restart: unless-stopped
+    networks:
+      - aura-proxy
+    environment:
+      - WHOAMI_PORT_NUMBER=80
+      - WHOAMI_NAME=Aura-WhoAmI
+    labels:
+      caddy: whoami.aura
+      caddy.reverse_proxy: "{{upstreams 80}}"
+      caddy.tls: "/certs/domains/whoami/cert.pem /certs/domains/whoami/key.pem"
+      caddy.header.X-Served-By: "Aura Proxy"
+      caddy.encode: gzip
+
+volumes:
+  caddy_data:
+    name: aura_caddy_data
+  caddy_config:
+    name: aura_caddy_config
+
+networks:
+  aura-proxy:
+    name: aura-proxy
+    driver: bridge

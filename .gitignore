@@ -1,0 +1,30 @@
+# Certificates and keys
+certs/
+*.pem
+*.key
+*.crt
+
+# Site configurations (can be included if desired)
+# sites/
+
+# Docker volumes
+caddy_data/
+caddy_config/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# Backup files
+*.bak
+*.backup

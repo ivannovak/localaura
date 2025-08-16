@@ -1,0 +1,150 @@
+version: '3.8'
+
+# Example Docker Compose file showing how to configure services with Aura proxy
+# Using Docker labels for automatic Caddy configuration
+
+services:
+  # Example: Simple web application
+  my-web-app:
+    image: nginx:alpine
+    container_name: my-web-app
+    networks:
+      - aura-proxy
+    labels:
+      # Basic configuration - domain and upstream
+      caddy: myapp.aura
+      caddy.reverse_proxy: "{{upstreams 80}}"
+      # Use custom certificates from mkcert
+      caddy.tls: "/certs/domains/myapp/cert.pem /certs/domains/myapp/key.pem"
+
+  # Example: API service with custom headers
+  my-api:
+    image: node:alpine
+    container_name: my-api
+    command: ["node", "server.js"]
+    networks:
+      - aura-proxy
+    labels:
+      caddy: api.aura
+      caddy.reverse_proxy: "{{upstreams 3000}}"
+      caddy.tls: "/certs/domains/api/cert.pem /certs/domains/api/key.pem"
+      # Add custom headers
+      caddy.header.X-API-Version: "v1"
+      caddy.header.Access-Control-Allow-Origin: "*"
+      # Enable compression
+      caddy.encode: gzip
+
+  # Example: Multiple domains for one service
+  multi-domain-app:
+    image: wordpress:latest
+    container_name: wordpress
+    networks:
+      - aura-proxy
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+    labels:
+      # Multiple domains (space-separated)
+      caddy: "blog.aura admin.blog.aura"
+      caddy.reverse_proxy: "{{upstreams 80}}"
+      caddy.tls: "/certs/domains/blog/cert.pem /certs/domains/blog/key.pem"
+
+  # Example: Service with path-based routing
+  docs-server:
+    image: docsify/docsify
+    container_name: docs
+    networks:
+      - aura-proxy
+    labels:
+      # Serve under a specific path
+      caddy: myapp.aura
+      caddy.route: /docs/*
+      caddy.route.reverse_proxy: "{{upstreams 3000}}"
+      caddy.route.tls: "/certs/domains/myapp/cert.pem /certs/domains/myapp/key.pem"
+
+  # Example: WebSocket support
+  websocket-app:
+    image: socketio/chat-example
+    container_name: chat
+    networks:
+      - aura-proxy
+    labels:
+      caddy: chat.aura
+      caddy.reverse_proxy: "{{upstreams 3000}}"
+      caddy.tls: "/certs/domains/chat/cert.pem /certs/domains/chat/key.pem"
+      # WebSocket support is automatic in Caddy
+
+  # Example: Basic auth protection
+  admin-panel:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    networks:
+      - aura-proxy
+    environment:
+      PMA_HOST: mysql
+    labels:
+      caddy: dbadmin.aura
+      # Basic auth (generate with: caddy hash-password)
+      caddy.basicauth: /*
+      caddy.basicauth.admin: "$2a$14$YourHashedPasswordHere"
+      caddy.reverse_proxy: "{{upstreams 80}}"
+      caddy.tls: "/certs/domains/dbadmin/cert.pem /certs/domains/dbadmin/key.pem"
+
+  # Example: Rate limiting
+  public-api:
+    image: strapi/strapi
+    container_name: cms
+    networks:
+      - aura-proxy
+    labels:
+      caddy: cms.aura
+      caddy.reverse_proxy: "{{upstreams 1337}}"
+      caddy.tls: "/certs/domains/cms/cert.pem /certs/domains/cms/key.pem"
+      # Rate limiting
+      caddy.rate_limit: "remote_ip 10r/m"
+
+  # Example: File server with directory listing
+  file-server:
+    image: nginx:alpine
+    container_name: files
+    volumes:
+      - ./shared:/usr/share/nginx/html:ro
+    networks:
+      - aura-proxy
+    labels:
+      caddy: files.aura
+      caddy.file_server: ""
+      caddy.file_server.root: "/usr/share/nginx/html"
+      caddy.file_server.browse: ""
+      caddy.tls: "/certs/domains/files/cert.pem /certs/domains/files/key.pem"
+
+# IMPORTANT: All services must be on the aura-proxy network
+networks:
+  aura-proxy:
+    external: true
+    name: aura-proxy
+
+# Notes:
+# 1. Before starting any service, generate its certificate:
+#    ./add-site.sh <domain>
+#
+# 2. The certificate paths follow the pattern:
+#    /certs/domains/<domain-without-.aura>/cert.pem
+#    /certs/domains/<domain-without-.aura>/key.pem
+#
+# 3. Common Caddy labels:
+#    - caddy: The domain(s) to serve
+#    - caddy.reverse_proxy: Proxy to container ({{upstreams PORT}})
+#    - caddy.tls: Certificate paths
+#    - caddy.encode: Enable compression (gzip, zstd, br)
+#    - caddy.header.<name>: Set response headers
+#    - caddy.basicauth: Enable basic authentication
+#    - caddy.rate_limit: Rate limiting rules
+#
+# 4. For more complex configurations, you can use:
+#    - caddy.route: Define custom routes
+#    - caddy.handle: Define handlers
+#    - caddy.match: Define matchers
+#
+# 5. Full documentation: https://github.com/lucaslorentz/caddy-docker-proxy
