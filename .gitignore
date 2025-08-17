@@ -4,6 +4,9 @@ certs/
 *.key
 *.crt
 
+# Built binary
+/aura
+
 # Site configurations (can be included if desired)
 # sites/
 
