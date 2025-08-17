@@ -15,8 +15,8 @@ Local HTTPS development proxy with a powerful CLI.
 
 ```bash
 # Clone and install
-git clone https://github.com/yourusername/aura.git
-cd aura
+git clone https://github.com/ivannovak/localaura.git
+cd localaura
 make install
 
 # Set up the proxy system
@@ -33,8 +33,8 @@ open https://whoami.aura
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/aura.git
-cd aura
+git clone https://github.com/ivannovak/localaura.git
+cd localaura
 
 # Build the CLI
 go build -o aura ./cmd/aura
@@ -50,7 +50,7 @@ aura install
 
 ```bash
 # Download the latest release (example for macOS ARM64)
-curl -L https://github.com/yourusername/aura/releases/latest/download/aura-darwin-arm64 -o aura
+curl -L https://github.com/ivannovak/localaura/releases/latest/download/aura-darwin-arm64 -o aura
 
 # Make executable and install
 chmod +x aura
