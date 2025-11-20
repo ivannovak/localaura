@@ -1,5 +1,8 @@
 name: Release
 
+# This workflow is triggered by semantic-release when it creates a version tag
+# It builds cross-platform binaries and creates GitHub releases with artifacts
+
 on:
   push:
     tags:
@@ -28,14 +31,13 @@ jobs:
       id: get_version
       run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
-    - name: Generate changelog
-      id: changelog
+    - name: Extract release notes
+      id: release_notes
       run: |
-        echo "## What's Changed" > CHANGELOG.md
-        git log $(git describe --tags --abbrev=0 HEAD^)..HEAD --pretty=format:"* %s (%an)" >> CHANGELOG.md
-        echo "" >> CHANGELOG.md
-        echo "" >> CHANGELOG.md
-        echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/$(git describe --tags --abbrev=0 HEAD^)...${{ steps.get_version.outputs.VERSION }}" >> CHANGELOG.md
+        # Extract the release notes for this version from CHANGELOG.md
+        VERSION="${{ steps.get_version.outputs.VERSION }}"
+        # Get the section for this version from the CHANGELOG
+        awk "/^## \[${VERSION#v}\]/,/^## \[/" CHANGELOG.md | sed '1d;$d' > RELEASE_NOTES.md || echo "Release $VERSION" > RELEASE_NOTES.md
 
     - name: Build binaries
       run: |
@@ -61,11 +63,11 @@ jobs:
         sha256sum aura-darwin-amd64 >> checksums.txt
         sha256sum aura-darwin-arm64 >> checksums.txt
 
-    - name: Create Release
+    - name: Update Release with Binaries
       uses: softprops/action-gh-release@v2
       with:
         name: Release ${{ steps.get_version.outputs.VERSION }}
-        body_path: CHANGELOG.md
+        body_path: RELEASE_NOTES.md
         draft: false
         prerelease: false
         files: |

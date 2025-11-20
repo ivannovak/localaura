@@ -7,6 +7,10 @@ certs/
 # Built binary
 /aura
 
+# Node.js dependencies for semantic-release
+node_modules/
+package-lock.json
+
 # Site configurations (can be included if desired)
 # sites/
 

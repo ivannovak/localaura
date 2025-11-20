@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/aura/aura-proxy/pkg/version"
 )
 
 func TestAuraDirPath(t *testing.T) {
@@ -18,13 +20,13 @@ func TestAuraDirPath(t *testing.T) {
 
 func TestVersion(t *testing.T) {
 	// Test that version is set
-	if version == "" {
+	if version.Version == "" {
 		t.Error("version should not be empty")
 	}
 
 	// Test version format (should be semantic versioning)
-	if len(version) < 3 {
-		t.Errorf("version = %v, should be in format X.Y.Z", version)
+	if len(version.Version) < 3 {
+		t.Errorf("version = %v, should be in format X.Y.Z", version.Version)
 	}
 }
 

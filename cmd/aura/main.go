@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/aura/aura-proxy/pkg/version"
 	"github.com/spf13/cobra"
 )
 
@@ -15,7 +16,6 @@ import (
 var templates embed.FS
 
 var (
-	version = "1.0.0"
 	auraDir = filepath.Join(os.Getenv("HOME"), ".aura")
 	
 	// ANSI color codes
@@ -202,8 +202,8 @@ func init() {
 	rootCmd.AddCommand(uninstallCmd)
 	
 	logsCmd.Flags().BoolP("follow", "f", false, "Follow log output")
-	
-	rootCmd.Version = version
+
+	rootCmd.Version = version.Version
 }
 
 func main() {
