@@ -1,3 +1,7 @@
+<p align="center">
+  <img src=".github/assets/aura-header.png" alt="Aura" width="800">
+</p>
+
 # Aura Global Reverse Proxy
 
 Local HTTPS development proxy with a powerful CLI.
@@ -224,3 +228,9 @@ See `~/.aura/docker-compose.example.yml` after installation for:
 ## License
 
 MIT
+
+---
+
+<p align="center">
+  <img src=".github/assets/aura-orb.png" alt="Aura" width="400">
+</p>
