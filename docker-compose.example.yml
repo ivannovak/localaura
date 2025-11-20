@@ -127,7 +127,7 @@ networks:
 
 # Notes:
 # 1. Before starting any service, generate its certificate:
-#    ./add-site.sh <domain>
+#    aura cert <domain>
 #
 # 2. The certificate paths follow the pattern:
 #    /certs/domains/<domain-without-.aura>/cert.pem
