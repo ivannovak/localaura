@@ -94,8 +94,8 @@ func TestCertCommandDomainHandling(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Simulate the domain handling logic from certCmd
 			domain := tt.input
-			if len(domain) < 5 || domain[len(domain)-5:] != ".aura" {
-				domain = domain + ".aura"
+			if len(domain) < 5 || domain[len(domain)-5:] != auraTLD {
+				domain += auraTLD
 			}
 
 			if domain != tt.expected {
@@ -134,8 +134,9 @@ func TestCertificatePaths(t *testing.T) {
 			// Extract domain name without .aura suffix
 			domainName := tt.domain[:len(tt.domain)-5]
 
-			certPath := filepath.Join("/certs/domains", domainName, "cert.pem")
-			keyPath := filepath.Join("/certs/domains", domainName, "key.pem")
+			const certsDomainsPath = "/certs/domains"
+			certPath := filepath.Join(certsDomainsPath, domainName, "cert.pem")
+			keyPath := filepath.Join(certsDomainsPath, domainName, "key.pem")
 
 			if certPath != tt.expectedCert {
 				t.Errorf("cert path = %v, want %v", certPath, tt.expectedCert)
@@ -175,7 +176,7 @@ func TestRootCommandLong(t *testing.T) {
 	}
 
 	// Test that it includes the ASCII title
-	if len(asciiTitle) == 0 {
+	if asciiTitle == "" {
 		t.Error("ASCII title should not be empty")
 	}
 }

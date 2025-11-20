@@ -1,27 +1,28 @@
 package main
 
 import (
-	"embed"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
-	"github.com/aura/aura-proxy/pkg/version"
 	"github.com/spf13/cobra"
+
+	"github.com/aura/aura-proxy/pkg/version"
 )
 
-//go:embed templates/*
-var templates embed.FS
+const (
+	auraTLD = ".aura"
+)
 
 var (
 	auraDir = filepath.Join(os.Getenv("HOME"), ".aura")
-	
+
 	// ANSI color codes
 	teal  = "\033[96m"
 	reset = "\033[0m"
-	
+
 	asciiTitle = teal + `
   █████╗ ██╗   ██╗██████╗  █████╗
  ██╔══██╗██║   ██║██╔══██╗██╔══██╗
@@ -35,7 +36,8 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "aura",
 	Short: "Aura - Local HTTPS development proxy",
-	Long:  asciiTitle + "\n     Local HTTPS development proxy\n\nAura provides a Docker-based reverse proxy with automatic HTTPS for local development using the .aura TLD.",
+	Long: asciiTitle + "\n     Local HTTPS development proxy\n\n" +
+		"Aura provides a Docker-based reverse proxy with automatic HTTPS for local development using the .aura TLD.",
 }
 
 var installCmd = &cobra.Command{
@@ -44,7 +46,7 @@ var installCmd = &cobra.Command{
 	Long:  `Sets up the Aura proxy system including loopback address, mkcert, and Docker configuration.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Println("🚀 Installing Aura proxy system...")
-		
+
 		// Create .aura directory
 		if err := os.MkdirAll(auraDir, 0755); err != nil {
 			return fmt.Errorf("failed to create aura directory: %w", err)
@@ -102,17 +104,17 @@ var certCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		domain := args[0]
-		if !strings.HasSuffix(domain, ".aura") {
-			domain = domain + ".aura"
+		if !strings.HasSuffix(domain, auraTLD) {
+			domain += auraTLD
 		}
 
 		fmt.Printf("🔐 Generating certificate for %s...\n", domain)
-		
+
 		certScript := filepath.Join(auraDir, "add-cert.sh")
 		if err := runCommand("bash", certScript, domain); err != nil {
 			return fmt.Errorf("failed to generate certificate: %w", err)
 		}
-		
+
 		fmt.Printf("✅ Certificate generated for %s\n", domain)
 		return nil
 	},
@@ -123,14 +125,14 @@ var statusCmd = &cobra.Command{
 	Short: "Show Aura proxy status",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Println("🔍 Checking Aura proxy status...")
-		
+
 		// Check if containers are running
 		output, err := exec.Command("docker", "ps", "--filter", "name=aura-", "--format", "table {{.Names}}\t{{.Status}}").Output()
 		if err != nil {
 			fmt.Println("❌ Aura proxy is not running")
 			return nil
 		}
-		
+
 		if len(output) > 0 {
 			fmt.Println("✅ Aura proxy is running")
 			fmt.Println(string(output))
@@ -147,13 +149,13 @@ var logsCmd = &cobra.Command{
 	Short: "Show Aura proxy logs",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		follow, _ := cmd.Flags().GetBool("follow")
-		
+
 		dockerArgs := []string{"logs"}
 		if follow {
 			dockerArgs = append(dockerArgs, "-f")
 		}
 		dockerArgs = append(dockerArgs, "aura-caddy")
-		
+
 		return runCommand("docker", dockerArgs...)
 	},
 }
@@ -164,22 +166,29 @@ var uninstallCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Println("⚠️  This will remove Aura proxy and all certificates.")
 		fmt.Print("Are you sure? (y/N): ")
-		
+
 		var response string
-		fmt.Scanln(&response)
+		if _, err := fmt.Scanln(&response); err != nil {
+			fmt.Println("Canceled")
+			return nil
+		}
 		if response != "y" && response != "Y" {
-			fmt.Println("Cancelled")
+			fmt.Println("Canceled")
 			return nil
 		}
 
 		// Stop containers
-		runCommandInDir(auraDir, "docker", "compose", "down", "-v")
+		if err := runCommandInDir(auraDir, "docker", "compose", "down", "-v"); err != nil {
+			fmt.Printf("Warning: failed to stop containers: %v\n", err)
+		}
 
 		// Remove DNS resolver configuration
 		uninstallResolverScript := filepath.Join(auraDir, "uninstall-resolver.sh")
 		if _, err := os.Stat(uninstallResolverScript); err == nil {
 			fmt.Println("🧹 Cleaning up DNS resolver...")
-			runCommand("bash", uninstallResolverScript)
+			if err := runCommand("bash", uninstallResolverScript); err != nil {
+				fmt.Printf("Warning: failed to cleanup DNS resolver: %v\n", err)
+			}
 		}
 
 		// Remove directory
@@ -192,6 +201,7 @@ var uninstallCmd = &cobra.Command{
 	},
 }
 
+//nolint:gochecknoinits // init required for cobra command registration
 func init() {
 	rootCmd.AddCommand(installCmd)
 	rootCmd.AddCommand(startCmd)
@@ -200,7 +210,7 @@ func init() {
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(logsCmd)
 	rootCmd.AddCommand(uninstallCmd)
-	
+
 	logsCmd.Flags().BoolP("follow", "f", false, "Follow log output")
 
 	rootCmd.Version = version.Version
@@ -242,30 +252,34 @@ func copyConfigs() error {
 		"add-cert.sh",
 		"uninstall-resolver.sh",
 	}
-	
+
 	for _, file := range files {
 		src := filepath.Join(".", file)
 		dst := filepath.Join(auraDir, file)
-		
+
 		input, err := os.ReadFile(src)
 		if err != nil {
 			return fmt.Errorf("failed to read %s: %w", file, err)
 		}
-		
-		if err := os.WriteFile(dst, input, 0755); err != nil {
+
+		if err := os.WriteFile(dst, input, 0600); err != nil {
 			return fmt.Errorf("failed to write %s: %w", file, err)
 		}
 	}
-	
+
 	// Create directories
-	os.MkdirAll(filepath.Join(auraDir, "certs", "domains"), 0755)
-	os.MkdirAll(filepath.Join(auraDir, "coredns"), 0755)
+	if err := os.MkdirAll(filepath.Join(auraDir, "certs", "domains"), 0755); err != nil {
+		return fmt.Errorf("failed to create certs directory: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Join(auraDir, "coredns"), 0755); err != nil {
+		return fmt.Errorf("failed to create coredns directory: %w", err)
+	}
 
 	// Copy CoreDNS configuration
 	corefile := filepath.Join(".", "coredns", "Corefile")
 	corefileDst := filepath.Join(auraDir, "coredns", "Corefile")
 	if input, err := os.ReadFile(corefile); err == nil {
-		if err := os.WriteFile(corefileDst, input, 0644); err != nil {
+		if err := os.WriteFile(corefileDst, input, 0600); err != nil {
 			return fmt.Errorf("failed to write Corefile: %w", err)
 		}
 	}

@@ -15,8 +15,8 @@
         "replacements": [
           {
             "files": ["pkg/version/version.go"],
-            "from": "Version   = \".*\"",
-            "to": "Version   = \"${nextRelease.version}\"",
+            "from": "Version = \".*\"",
+            "to": "Version = \"${nextRelease.version}\"",
             "results": [
               {
                 "file": "pkg/version/version.go",
