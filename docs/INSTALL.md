@@ -28,8 +28,8 @@ Complete installation instructions for Aura proxy on different platforms.
 
 ```bash
 # Clone the repository
-git clone https://github.com/ivannovak/localaura.git
-cd localaura
+git clone https://github.com/ivannovak/aura.git
+cd aura
 
 # Build and install the CLI
 make install
@@ -62,8 +62,8 @@ For developers or if you want more control:
 
 ```bash
 # Clone the repository
-git clone https://github.com/ivannovak/localaura.git
-cd localaura
+git clone https://github.com/ivannovak/aura.git
+cd aura
 
 # Build the CLI
 go build -o aura ./cmd/aura

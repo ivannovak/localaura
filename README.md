@@ -4,9 +4,9 @@
 
 # Aura
 
-[![CI](https://github.com/ivannovak/localaura/actions/workflows/ci.yml/badge.svg)](https://github.com/ivannovak/localaura/actions/workflows/ci.yml)
-[![Release](https://github.com/ivannovak/localaura/actions/workflows/release.yml/badge.svg)](https://github.com/ivannovak/localaura/actions/workflows/release.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/ivannovak/localaura)](https://goreportcard.com/report/github.com/ivannovak/localaura)
+[![CI](https://github.com/ivannovak/aura/actions/workflows/ci.yml/badge.svg)](https://github.com/ivannovak/aura/actions/workflows/ci.yml)
+[![Release](https://github.com/ivannovak/aura/actions/workflows/release.yml/badge.svg)](https://github.com/ivannovak/aura/actions/workflows/release.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/ivannovak/aura)](https://goreportcard.com/report/github.com/ivannovak/aura)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **Local HTTPS development proxy with automatic DNS and certificates.**
@@ -50,8 +50,8 @@ docker compose up -d
 ### Install
 
 ```bash
-git clone https://github.com/ivannovak/localaura.git
-cd localaura
+git clone https://github.com/ivannovak/aura.git
+cd aura
 make install && aura install && aura start
 ```
 
@@ -261,7 +261,7 @@ services:
 
 ## Contributing
 
-Issues and pull requests welcome at [github.com/ivannovak/localaura](https://github.com/ivannovak/localaura)
+Issues and pull requests welcome at [github.com/ivannovak/aura](https://github.com/ivannovak/aura)
 
 ---
 

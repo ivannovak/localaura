@@ -706,7 +706,7 @@ If you're still stuck after trying these solutions:
    ```
 
 3. **Open an Issue:**
-   - Go to: https://github.com/ivannovak/localaura/issues
+   - Go to: https://github.com/ivannovak/aura/issues
    - Include diagnostic output
    - Describe what you were trying to do
    - Include error messages
@@ -788,7 +788,7 @@ sudo rm /etc/systemd/resolved.conf.d/aura.conf
 sudo systemctl disable --now aura-loopback
 
 # 5. Reinstall from scratch
-cd /path/to/localaura
+cd /path/to/aura
 make install
 aura install
 aura start
