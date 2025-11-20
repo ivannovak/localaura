@@ -4,6 +4,11 @@
 
 # Aura
 
+[![CI](https://github.com/ivannovak/localaura/actions/workflows/ci.yml/badge.svg)](https://github.com/ivannovak/localaura/actions/workflows/ci.yml)
+[![Release](https://github.com/ivannovak/localaura/actions/workflows/release.yml/badge.svg)](https://github.com/ivannovak/localaura/actions/workflows/release.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/ivannovak/localaura)](https://goreportcard.com/report/github.com/ivannovak/localaura)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 **Local HTTPS development proxy with automatic DNS and certificates.**
 
 Stop fighting with `/etc/hosts` and self-signed certificate warnings. Aura gives you instant `*.aura` domains with trusted HTTPS for all your Docker services.

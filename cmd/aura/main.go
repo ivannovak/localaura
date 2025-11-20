@@ -132,7 +132,7 @@ var statusCmd = &cobra.Command{
 		}
 		
 		if len(output) > 0 {
-			fmt.Println("✅ Aura proxy is running\n")
+			fmt.Println("✅ Aura proxy is running")
 			fmt.Println(string(output))
 		} else {
 			fmt.Println("❌ Aura proxy is not running")
