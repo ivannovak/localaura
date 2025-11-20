@@ -36,7 +36,6 @@ linters:
     - bodyclose
     - dupl
     - errcheck
-    - exportloopref
     - funlen
     - gochecknoinits
     - goconst
