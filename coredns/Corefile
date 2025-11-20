@@ -1,0 +1,28 @@
+# CoreDNS configuration for .aura TLD
+# Wildcard resolves all *.aura domains to 127.0.0.2
+
+aura:53 {
+    # Log DNS queries for debugging
+    log
+
+    # Respond to all .aura domains with 127.0.0.2
+    template IN A aura {
+        answer "{{ .Name }} 0 IN A 127.0.0.2"
+        rcode NOERROR
+    }
+
+    # Also handle AAAA (IPv6) queries with NODATA response
+    template IN AAAA aura {
+        rcode NOERROR
+    }
+
+    # Enable errors logging
+    errors
+}
+
+# Fallback for non-.aura domains - forward to system resolver
+. {
+    forward . /etc/resolv.conf
+    log
+    errors
+}

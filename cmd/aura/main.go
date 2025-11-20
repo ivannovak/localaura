@@ -173,12 +173,19 @@ var uninstallCmd = &cobra.Command{
 
 		// Stop containers
 		runCommandInDir(auraDir, "docker", "compose", "down", "-v")
-		
+
+		// Remove DNS resolver configuration
+		uninstallResolverScript := filepath.Join(auraDir, "uninstall-resolver.sh")
+		if _, err := os.Stat(uninstallResolverScript); err == nil {
+			fmt.Println("🧹 Cleaning up DNS resolver...")
+			runCommand("bash", uninstallResolverScript)
+		}
+
 		// Remove directory
 		if err := os.RemoveAll(auraDir); err != nil {
 			return fmt.Errorf("failed to remove aura directory: %w", err)
 		}
-		
+
 		fmt.Println("✅ Aura proxy uninstalled")
 		return nil
 	},
@@ -229,8 +236,10 @@ func copyConfigs() error {
 		"docker-compose.example.yml",
 		"setup.sh",
 		"setup-loopback.sh",
+		"setup-resolver.sh",
 		"setup-mkcert.sh",
 		"add-cert.sh",
+		"uninstall-resolver.sh",
 	}
 	
 	for _, file := range files {
@@ -249,6 +258,16 @@ func copyConfigs() error {
 	
 	// Create directories
 	os.MkdirAll(filepath.Join(auraDir, "certs", "domains"), 0755)
-	
+	os.MkdirAll(filepath.Join(auraDir, "coredns"), 0755)
+
+	// Copy CoreDNS configuration
+	corefile := filepath.Join(".", "coredns", "Corefile")
+	corefileDst := filepath.Join(auraDir, "coredns", "Corefile")
+	if input, err := os.ReadFile(corefile); err == nil {
+		if err := os.WriteFile(corefileDst, input, 0644); err != nil {
+			return fmt.Errorf("failed to write Corefile: %w", err)
+		}
+	}
+
 	return nil
 }

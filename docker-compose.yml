@@ -38,6 +38,20 @@ services:
       caddy.header.X-Served-By: "Aura Proxy"
       caddy.encode: gzip
 
+  coredns:
+    image: coredns/coredns:latest
+    container_name: aura-coredns
+    restart: unless-stopped
+    command: -conf /config/Corefile
+    ports:
+      # Bind DNS server to custom loopback address 127.0.0.2
+      - "127.0.0.2:53:53/udp"
+      - "127.0.0.2:53:53/tcp"
+    volumes:
+      - ./coredns:/config:ro
+    networks:
+      - aura-proxy
+
 volumes:
   caddy_data:
     name: aura_caddy_data

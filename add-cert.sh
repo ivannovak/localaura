@@ -70,19 +70,9 @@ for file in *.pem; do
 done
 
 echo "✓ Certificate generated in $CERT_DIR"
-
-# Update hosts file
-echo ""
-echo "Updating /etc/hosts..."
-if grep -q "$DOMAIN" /etc/hosts; then
-    echo "✓ $DOMAIN already in /etc/hosts"
-else
-    echo "127.0.0.2    $DOMAIN" | sudo tee -a /etc/hosts > /dev/null
-    echo "✓ Added $DOMAIN to /etc/hosts"
-fi
-
 echo ""
 echo "✓ Certificate ready for $DOMAIN!"
+echo "  DNS resolution handled automatically via CoreDNS (all *.aura domains resolve to 127.0.0.2)"
 echo ""
 echo "Certificate paths for Docker labels:"
 echo "  caddy.tls: \"/certs/domains/$DOMAIN_NAME/cert.pem /certs/domains/$DOMAIN_NAME/key.pem\""

@@ -155,14 +155,26 @@ Service is immediately available at `https://myapp.aura`
 ## How It Works
 
 - **CLI** manages the proxy system from anywhere
+- **CoreDNS** provides wildcard DNS resolution for all `*.aura` domains to `127.0.0.2`
 - **Caddy Docker Proxy** auto-discovers containers via labels
 - **mkcert** provides locally-trusted certificates
-- **Custom loopback** (127.0.0.2) avoids port conflicts
+- **Custom loopback** (127.0.0.2) avoids port conflicts with existing services
 
 ## File Locations
 
 - `~/.aura/` - Configuration, certificates, and docker-compose files
+- `~/.aura/coredns/` - CoreDNS configuration
+- `/etc/resolver/aura` - macOS DNS resolver configuration (automatically created)
 - `/usr/local/bin/aura` - CLI binary
+
+## DNS Resolution
+
+Aura uses CoreDNS for automatic wildcard DNS resolution:
+
+- **No /etc/hosts management** - All `*.aura` domains automatically resolve to `127.0.0.2`
+- **Instant new domains** - Just generate a certificate and add Docker labels, no DNS setup needed
+- **Works with Herd** - Uses separate loopback address to avoid conflicts with Laravel Herd
+- **Clean uninstall** - `aura uninstall` removes DNS configuration automatically
 
 ## Troubleshooting
 
@@ -191,6 +203,21 @@ aura cert myapp
 
 # Check certificate location
 ls ~/.aura/certs/domains/
+```
+
+### DNS Not Resolving
+```bash
+# Test DNS resolution
+dig @127.0.0.2 whoami.aura
+
+# Check resolver configuration (macOS)
+cat /etc/resolver/aura
+
+# Restart CoreDNS
+docker restart aura-coredns
+
+# Test any .aura domain
+ping test.aura
 ```
 
 ### Completely Reset

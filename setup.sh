@@ -11,9 +11,10 @@ echo "========================================"
 echo ""
 echo "This script will set up the complete Aura proxy system:"
 echo "  1. Configure custom loopback address (127.0.0.2)"
-echo "  2. Install and configure mkcert"
-echo "  3. Create necessary directories"
-echo "  4. Make scripts executable"
+echo "  2. Configure DNS resolver for .aura domains"
+echo "  3. Install and configure mkcert"
+echo "  4. Create necessary directories"
+echo "  5. Make scripts executable"
 echo ""
 read -p "Continue with setup? (y/N): " -n 1 -r
 echo ""
@@ -31,21 +32,27 @@ echo "----------------------------------------"
 bash "$SCRIPT_DIR/setup-loopback.sh"
 echo ""
 
-# Step 2: Setup mkcert
-echo "Step 2: Setting up mkcert..."
+# Step 2: Setup DNS resolver for .aura domains
+echo "Step 2: Setting up DNS resolver for .aura domains..."
+echo "----------------------------------------"
+bash "$SCRIPT_DIR/setup-resolver.sh"
+echo ""
+
+# Step 3: Setup mkcert
+echo "Step 3: Setting up mkcert..."
 echo "----------------------------------------"
 bash "$SCRIPT_DIR/setup-mkcert.sh"
 echo ""
 
-# Step 3: Create necessary directories
-echo "Step 3: Creating directories..."
+# Step 4: Create necessary directories
+echo "Step 4: Creating directories..."
 echo "----------------------------------------"
 mkdir -p "$SCRIPT_DIR/certs/domains"
 echo "✓ Created certs/domains directory"
 echo ""
 
-# Step 3.5: Generate default WhoAmI certificate
-echo "Step 3.5: Generating WhoAmI certificate..."
+# Step 5: Generate default WhoAmI certificate
+echo "Step 5: Generating WhoAmI certificate..."
 echo "----------------------------------------"
 if ! command -v mkcert &> /dev/null; then
     echo "⚠ mkcert not found, skipping WhoAmI certificate generation"
@@ -62,24 +69,18 @@ else
         fi
     done
     echo "✓ WhoAmI certificate generated"
-    
-    # Add to hosts file
-    if ! grep -q "whoami.aura" /etc/hosts; then
-        echo "127.0.0.2    whoami.aura" | sudo tee -a /etc/hosts > /dev/null
-        echo "✓ Added whoami.aura to /etc/hosts"
-    fi
 fi
 echo ""
 
-# Step 4: Make scripts executable
-echo "Step 4: Making scripts executable..."
+# Step 6: Make scripts executable
+echo "Step 6: Making scripts executable..."
 echo "----------------------------------------"
 chmod +x "$SCRIPT_DIR"/*.sh
 echo "✓ All scripts are now executable"
 echo ""
 
-# Step 5: Check Docker
-echo "Step 5: Checking Docker..."
+# Step 7: Check Docker
+echo "Step 7: Checking Docker..."
 echo "----------------------------------------"
 if command -v docker &> /dev/null && command -v docker-compose &> /dev/null; then
     echo "✓ Docker is installed"
