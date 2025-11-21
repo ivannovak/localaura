@@ -1,0 +1,521 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>aura: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/ivannovak/aura/cmd/aura/main.go (18.7%)</option>
+				
+				<option value="file1">github.com/ivannovak/aura/pkg/version/version.go (100.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package main
+
+import (
+        "embed"
+        "fmt"
+        "os"
+        "os/exec"
+        "path/filepath"
+        "regexp"
+        "strings"
+
+        "github.com/spf13/cobra"
+
+        "github.com/ivannovak/aura/pkg/version"
+)
+
+//go:embed embed/docker-compose.yml embed/docker-compose.example.yml
+//go:embed embed/setup.sh embed/setup-loopback.sh embed/setup-resolver.sh embed/setup-mkcert.sh
+//go:embed embed/add-cert.sh embed/uninstall-resolver.sh embed/uninstall-loopback.sh
+//go:embed embed/coredns/Corefile
+var embeddedFS embed.FS
+
+const (
+        auraTLD = ".aura"
+)
+
+var (
+        domainLabelRegex = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
+
+        auraDir string
+
+        // ANSI color codes
+        teal  = "\033[96m"
+        reset = "\033[0m"
+
+        asciiTitle = teal + `
+  █████╗ ██╗   ██╗██████╗  █████╗
+ ██╔══██╗██║   ██║██╔══██╗██╔══██╗
+ ███████║██║   ██║██████╔╝███████║
+ ██╔══██║██║   ██║██╔══██╗██╔══██║
+ ██║  ██║╚██████╔╝██║  ██║██║  ██║
+ ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝
+` + reset
+)
+
+func init() <span class="cov8" title="1">{
+        home, err := os.UserHomeDir()
+        if err != nil </span><span class="cov0" title="0">{
+                fmt.Fprintf(os.Stderr, "Error: Unable to determine home directory: %v\n", err)
+                os.Exit(1)
+        }</span>
+        <span class="cov8" title="1">auraDir = filepath.Join(home, ".aura")</span>
+}
+
+var rootCmd = &amp;cobra.Command{
+        Use:   "aura",
+        Short: "Aura - Local HTTPS development proxy",
+        Long: asciiTitle + "\n     Local HTTPS development proxy\n\n" +
+                "Aura provides a Docker-based reverse proxy with automatic HTTPS for local development using the .aura TLD.",
+}
+
+var installCmd = &amp;cobra.Command{
+        Use:   "install",
+        Short: "Install Aura proxy system",
+        Long:  `Sets up the Aura proxy system including loopback address, mkcert, and Docker configuration.`,
+        RunE: func(cmd *cobra.Command, args []string) error <span class="cov0" title="0">{
+                fmt.Println("🚀 Installing Aura proxy system...")
+
+                // Create .aura directory
+                if err := os.MkdirAll(auraDir, 0755); err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("failed to create aura directory: %w", err)
+                }</span>
+
+                // Copy configuration files
+                <span class="cov0" title="0">if err := copyConfigs(); err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("failed to copy configs: %w", err)
+                }</span>
+
+                // Run setup script
+                <span class="cov0" title="0">setupScript := filepath.Join(auraDir, "setup.sh")
+                if err := runCommand("bash", setupScript); err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("setup failed: %w", err)
+                }</span>
+
+                <span class="cov0" title="0">fmt.Println("✅ Aura proxy installed successfully!")
+                fmt.Println("\nNext steps:")
+                fmt.Println("  1. Start the proxy: aura start")
+                fmt.Println("  2. Test it: open https://whoami.aura")
+                return nil</span>
+        },
+}
+
+var startCmd = &amp;cobra.Command{
+        Use:   "start",
+        Short: "Start Aura proxy",
+        RunE: func(cmd *cobra.Command, args []string) error <span class="cov0" title="0">{
+                fmt.Println("🟢 Starting Aura proxy...")
+                if err := runCommandInDir(auraDir, "docker", "compose", "up", "-d"); err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("failed to start proxy: %w", err)
+                }</span>
+                <span class="cov0" title="0">fmt.Println("✅ Aura proxy started!")
+                fmt.Println("   Test: https://whoami.aura")
+                return nil</span>
+        },
+}
+
+var stopCmd = &amp;cobra.Command{
+        Use:   "stop",
+        Short: "Stop Aura proxy",
+        RunE: func(cmd *cobra.Command, args []string) error <span class="cov0" title="0">{
+                fmt.Println("🔴 Stopping Aura proxy...")
+                if err := runCommandInDir(auraDir, "docker", "compose", "down"); err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("failed to stop proxy: %w", err)
+                }</span>
+                <span class="cov0" title="0">fmt.Println("✅ Aura proxy stopped")
+                return nil</span>
+        },
+}
+
+var certCmd = &amp;cobra.Command{
+        Use:   "cert [domain]",
+        Short: "Generate certificate for a domain",
+        Args:  cobra.ExactArgs(1),
+        RunE: func(cmd *cobra.Command, args []string) error <span class="cov0" title="0">{
+                domain := args[0]
+                if !strings.HasSuffix(domain, auraTLD) </span><span class="cov0" title="0">{
+                        domain += auraTLD
+                }</span>
+
+                <span class="cov0" title="0">if err := validateDomain(domain); err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("invalid domain: %w", err)
+                }</span>
+
+                <span class="cov0" title="0">fmt.Printf("🔐 Generating certificate for %s...\n", domain)
+
+                certScript := filepath.Join(auraDir, "add-cert.sh")
+                if err := runCommand("bash", certScript, domain); err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("failed to generate certificate: %w", err)
+                }</span>
+
+                <span class="cov0" title="0">fmt.Printf("✅ Certificate generated for %s\n", domain)
+                return nil</span>
+        },
+}
+
+var statusCmd = &amp;cobra.Command{
+        Use:   "status",
+        Short: "Show Aura proxy status",
+        RunE: func(cmd *cobra.Command, args []string) error <span class="cov0" title="0">{
+                fmt.Println("🔍 Checking Aura proxy status...")
+
+                // Check if containers are running
+                output, err := exec.Command("docker", "ps", "--filter", "name=aura-", "--format", "table {{.Names}}\t{{.Status}}").Output()
+                if err != nil </span><span class="cov0" title="0">{
+                        fmt.Println("❌ Aura proxy is not running")
+                        return nil
+                }</span>
+
+                <span class="cov0" title="0">if len(output) &gt; 0 </span><span class="cov0" title="0">{
+                        fmt.Println("✅ Aura proxy is running")
+                        fmt.Println(string(output))
+                }</span> else<span class="cov0" title="0"> {
+                        fmt.Println("❌ Aura proxy is not running")
+                        fmt.Println("   Start with: aura start")
+                }</span>
+                <span class="cov0" title="0">return nil</span>
+        },
+}
+
+var logsCmd = &amp;cobra.Command{
+        Use:   "logs",
+        Short: "Show Aura proxy logs",
+        RunE: func(cmd *cobra.Command, args []string) error <span class="cov0" title="0">{
+                follow, _ := cmd.Flags().GetBool("follow")
+
+                dockerArgs := []string{"logs"}
+                if follow </span><span class="cov0" title="0">{
+                        dockerArgs = append(dockerArgs, "-f")
+                }</span>
+                <span class="cov0" title="0">dockerArgs = append(dockerArgs, "aura-caddy")
+
+                return runCommand("docker", dockerArgs...)</span>
+        },
+}
+
+var uninstallCmd = &amp;cobra.Command{
+        Use:   "uninstall",
+        Short: "Uninstall Aura proxy system",
+        Long:  `Removes Aura proxy system including DNS configuration, loopback address, and all files.`,
+        RunE: func(cmd *cobra.Command, args []string) error <span class="cov0" title="0">{
+                fmt.Println("⚠️  This will completely remove Aura proxy:")
+                fmt.Println("   - Stop and remove Docker containers")
+                fmt.Println("   - Remove DNS resolver configuration")
+                fmt.Println("   - Remove loopback address (127.0.0.2)")
+                fmt.Println("   - Remove all certificates")
+                fmt.Println("   - Remove ~/.aura directory")
+                fmt.Print("\nAre you sure? (y/N): ")
+
+                var response string
+                if _, err := fmt.Scanln(&amp;response); err != nil </span><span class="cov0" title="0">{
+                        fmt.Println("Canceled")
+                        return nil
+                }</span>
+                <span class="cov0" title="0">if response != "y" &amp;&amp; response != "Y" </span><span class="cov0" title="0">{
+                        fmt.Println("Canceled")
+                        return nil
+                }</span>
+
+                // Stop containers and remove volumes
+                <span class="cov0" title="0">fmt.Println("\n🧹 Stopping containers...")
+                if err := runCommandInDir(auraDir, "docker", "compose", "down", "-v"); err != nil </span><span class="cov0" title="0">{
+                        fmt.Printf("Warning: failed to stop containers: %v\n", err)
+                }</span>
+
+                // Remove DNS resolver configuration
+                <span class="cov0" title="0">uninstallResolverScript := filepath.Join(auraDir, "uninstall-resolver.sh")
+                if _, err := os.Stat(uninstallResolverScript); err == nil </span><span class="cov0" title="0">{
+                        fmt.Println("🧹 Removing DNS resolver configuration...")
+                        if err := runCommand("bash", uninstallResolverScript); err != nil </span><span class="cov0" title="0">{
+                                fmt.Printf("Warning: failed to cleanup DNS resolver: %v\n", err)
+                        }</span>
+                }
+
+                // Remove loopback address configuration
+                <span class="cov0" title="0">uninstallLoopbackScript := filepath.Join(auraDir, "uninstall-loopback.sh")
+                if _, err := os.Stat(uninstallLoopbackScript); err == nil </span><span class="cov0" title="0">{
+                        fmt.Println("🧹 Removing loopback address configuration...")
+                        if err := runCommand("bash", uninstallLoopbackScript); err != nil </span><span class="cov0" title="0">{
+                                fmt.Printf("Warning: failed to cleanup loopback address: %v\n", err)
+                        }</span>
+                }
+
+                // Remove Docker network
+                <span class="cov0" title="0">fmt.Println("🧹 Removing Docker network...")
+                if err := runCommand("docker", "network", "rm", "aura-proxy"); err != nil </span><span class="cov0" title="0">{
+                        // Network might not exist, that's okay
+                        fmt.Println("Note: Docker network already removed or doesn't exist")
+                }</span>
+
+                // Remove Docker volumes
+                <span class="cov0" title="0">fmt.Println("🧹 Removing Docker volumes...")
+                _ = runCommand("docker", "volume", "rm", "aura_caddy_data")
+                _ = runCommand("docker", "volume", "rm", "aura_caddy_config")
+
+                // Remove directory
+                fmt.Println("🧹 Removing ~/.aura directory...")
+                if err := os.RemoveAll(auraDir); err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("failed to remove aura directory: %w", err)
+                }</span>
+
+                <span class="cov0" title="0">fmt.Println("\n✅ Aura proxy completely uninstalled!")
+                fmt.Println("\nOptional: To remove the CLI binary:")
+                fmt.Println("  sudo rm /usr/local/bin/aura")
+                return nil</span>
+        },
+}
+
+var versionCmd = &amp;cobra.Command{
+        Use:   "version",
+        Short: "Show version information",
+        Run: func(cmd *cobra.Command, args []string) <span class="cov0" title="0">{
+                verbose, _ := cmd.Flags().GetBool("verbose")
+
+                if verbose </span><span class="cov0" title="0">{
+                        fmt.Printf("Aura v%s\n", version.Version)
+                        fmt.Printf("  Git Commit: %s\n", version.GitCommit)
+                        fmt.Printf("  Build Date: %s\n", version.BuildDate)
+                        fmt.Printf("  Go Version: %s\n", version.GoVersion)
+                        fmt.Printf("  Platform:   %s\n", version.Platform)
+                }</span> else<span class="cov0" title="0"> {
+                        fmt.Printf("aura version %s\n", version.Version)
+                }</span>
+        },
+}
+
+//nolint:gochecknoinits // init required for cobra command registration
+func init() <span class="cov8" title="1">{
+        rootCmd.AddCommand(installCmd)
+        rootCmd.AddCommand(startCmd)
+        rootCmd.AddCommand(stopCmd)
+        rootCmd.AddCommand(certCmd)
+        rootCmd.AddCommand(statusCmd)
+        rootCmd.AddCommand(logsCmd)
+        rootCmd.AddCommand(uninstallCmd)
+        rootCmd.AddCommand(versionCmd)
+
+        logsCmd.Flags().BoolP("follow", "f", false, "Follow log output")
+        versionCmd.Flags().BoolP("verbose", "v", false, "Show detailed version information")
+
+        rootCmd.Version = version.Version
+}</span>
+
+func main() <span class="cov0" title="0">{
+        if err := rootCmd.Execute(); err != nil </span><span class="cov0" title="0">{
+                os.Exit(1)
+        }</span>
+}
+
+func runCommand(name string, args ...string) error <span class="cov0" title="0">{
+        cmd := exec.Command(name, args...)
+        cmd.Stdout = os.Stdout
+        cmd.Stderr = os.Stderr
+        cmd.Stdin = os.Stdin
+        return cmd.Run()
+}</span>
+
+func runCommandInDir(dir, name string, args ...string) error <span class="cov0" title="0">{
+        cmd := exec.Command(name, args...)
+        cmd.Dir = dir
+        cmd.Stdout = os.Stdout
+        cmd.Stderr = os.Stderr
+        cmd.Stdin = os.Stdin
+        return cmd.Run()
+}</span>
+
+func validateDomain(domain string) error <span class="cov8" title="1">{
+        baseDomain := strings.TrimSuffix(domain, auraTLD)
+
+        if len(domain) &gt; 253 </span><span class="cov8" title="1">{
+                return fmt.Errorf("domain name too long (max 253 characters)")
+        }</span>
+
+        <span class="cov8" title="1">if baseDomain == "" </span><span class="cov8" title="1">{
+                return fmt.Errorf("domain name cannot be empty")
+        }</span>
+
+        <span class="cov8" title="1">if strings.Contains(domain, "..") </span><span class="cov8" title="1">{
+                return fmt.Errorf("invalid domain: contains path traversal")
+        }</span>
+
+        <span class="cov8" title="1">if strings.Contains(domain, "\x00") </span><span class="cov8" title="1">{
+                return fmt.Errorf("invalid domain: contains null byte")
+        }</span>
+
+        <span class="cov8" title="1">labels := strings.Split(baseDomain, ".")
+        for _, label := range labels </span><span class="cov8" title="1">{
+                if len(label) == 0 </span><span class="cov0" title="0">{
+                        return fmt.Errorf("invalid domain: empty label")
+                }</span>
+                <span class="cov8" title="1">if len(label) &gt; 63 </span><span class="cov8" title="1">{
+                        return fmt.Errorf("invalid domain: label exceeds 63 characters")
+                }</span>
+                <span class="cov8" title="1">if !domainLabelRegex.MatchString(label) </span><span class="cov8" title="1">{
+                        return fmt.Errorf("invalid domain label '%s': must contain only lowercase letters, numbers, and hyphens", label)
+                }</span>
+        }
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+func copyConfigs() error <span class="cov0" title="0">{
+        files := []string{
+                "docker-compose.yml",
+                "docker-compose.example.yml",
+                "setup.sh",
+                "setup-loopback.sh",
+                "setup-resolver.sh",
+                "setup-mkcert.sh",
+                "add-cert.sh",
+                "uninstall-resolver.sh",
+                "uninstall-loopback.sh",
+        }
+
+        for _, file := range files </span><span class="cov0" title="0">{
+                data, err := embeddedFS.ReadFile("embed/" + file)
+                if err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("failed to read embedded %s: %w", file, err)
+                }</span>
+
+                <span class="cov0" title="0">dst := filepath.Join(auraDir, file)
+                if err := os.WriteFile(dst, data, 0600); err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("failed to write %s: %w", file, err)
+                }</span>
+        }
+
+        // Create directories
+        <span class="cov0" title="0">if err := os.MkdirAll(filepath.Join(auraDir, "certs", "domains"), 0755); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to create certs directory: %w", err)
+        }</span>
+        <span class="cov0" title="0">if err := os.MkdirAll(filepath.Join(auraDir, "coredns"), 0755); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to create coredns directory: %w", err)
+        }</span>
+
+        // Copy CoreDNS configuration
+        <span class="cov0" title="0">corefileData, err := embeddedFS.ReadFile("embed/coredns/Corefile")
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to read embedded Corefile: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">corefileDst := filepath.Join(auraDir, "coredns", "Corefile")
+        if err := os.WriteFile(corefileDst, corefileData, 0600); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to write Corefile: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package version
+
+import "fmt"
+
+// Version is the current version of Aura, managed by semantic-release
+var (
+        Version   = "dev"
+        GitCommit = "unknown"
+        BuildDate = "unknown"
+        GoVersion = "unknown"
+        Platform  = "unknown"
+)
+
+// FullVersion returns a detailed version string
+func FullVersion() string <span class="cov8" title="1">{
+        return fmt.Sprintf("%s (commit: %s, built: %s, go: %s, platform: %s)",
+                Version, GitCommit, BuildDate, GoVersion, Platform)
+}</span>
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

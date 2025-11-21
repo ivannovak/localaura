@@ -1,4 +1,4 @@
-.PHONY: build install uninstall clean test version
+.PHONY: build install uninstall clean test test-integration test-coverage test-all version
 
 BINARY_NAME=aura
 INSTALL_PATH=/usr/local/bin
@@ -45,7 +45,21 @@ clean:
 	@go clean
 
 test:
-	@go test ./...
+	@go test -v ./...
+
+test-integration:
+	@echo "Running integration tests..."
+	@go test -v -tags=integration ./...
+
+test-coverage:
+	@echo "Running tests with coverage..."
+	@go test -v -coverprofile=coverage.out ./...
+	@go tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report: coverage.html"
+	@go tool cover -func=coverage.out | grep total | awk '{print "Total coverage: " $$3}'
+
+test-all: test test-integration test-coverage
+	@echo "All tests completed!"
 
 version:
 	@echo "Version:    $(VERSION)"
