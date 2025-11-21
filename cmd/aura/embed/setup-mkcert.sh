@@ -25,6 +25,12 @@ if ! command -v mkcert &> /dev/null; then
     elif [ "$PLATFORM" = "Linux" ]; then
         # Linux - download binary
         echo "Downloading mkcert for Linux..."
+
+        # mkcert version configuration
+        # Update this when new versions are released
+        # Check: https://github.com/FiloSottile/mkcert/releases
+        # Last updated: 2025-01-21
+        # Reason: v1.4.4 is latest stable as of this date
         MKCERT_VERSION="v1.4.4"
 
         ARCH=$(uname -m)
