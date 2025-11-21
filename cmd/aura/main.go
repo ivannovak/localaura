@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,6 +12,12 @@ import (
 
 	"github.com/aura/aura-proxy/pkg/version"
 )
+
+//go:embed embed/docker-compose.yml embed/docker-compose.example.yml
+//go:embed embed/setup.sh embed/setup-loopback.sh embed/setup-resolver.sh embed/setup-mkcert.sh
+//go:embed embed/add-cert.sh embed/uninstall-resolver.sh
+//go:embed embed/coredns/Corefile
+var embeddedFS embed.FS
 
 const (
 	auraTLD = ".aura"
@@ -240,8 +247,6 @@ func runCommandInDir(dir, name string, args ...string) error {
 }
 
 func copyConfigs() error {
-	// This will be implemented to copy embedded files
-	// For now, we'll copy from the current directory
 	files := []string{
 		"docker-compose.yml",
 		"docker-compose.example.yml",
@@ -254,15 +259,13 @@ func copyConfigs() error {
 	}
 
 	for _, file := range files {
-		src := filepath.Join(".", file)
-		dst := filepath.Join(auraDir, file)
-
-		input, err := os.ReadFile(src)
+		data, err := embeddedFS.ReadFile("embed/" + file)
 		if err != nil {
-			return fmt.Errorf("failed to read %s: %w", file, err)
+			return fmt.Errorf("failed to read embedded %s: %w", file, err)
 		}
 
-		if err := os.WriteFile(dst, input, 0600); err != nil {
+		dst := filepath.Join(auraDir, file)
+		if err := os.WriteFile(dst, data, 0600); err != nil {
 			return fmt.Errorf("failed to write %s: %w", file, err)
 		}
 	}
@@ -276,12 +279,14 @@ func copyConfigs() error {
 	}
 
 	// Copy CoreDNS configuration
-	corefile := filepath.Join(".", "coredns", "Corefile")
+	corefileData, err := embeddedFS.ReadFile("embed/coredns/Corefile")
+	if err != nil {
+		return fmt.Errorf("failed to read embedded Corefile: %w", err)
+	}
+
 	corefileDst := filepath.Join(auraDir, "coredns", "Corefile")
-	if input, err := os.ReadFile(corefile); err == nil {
-		if err := os.WriteFile(corefileDst, input, 0600); err != nil {
-			return fmt.Errorf("failed to write Corefile: %w", err)
-		}
+	if err := os.WriteFile(corefileDst, corefileData, 0600); err != nil {
+		return fmt.Errorf("failed to write Corefile: %w", err)
 	}
 
 	return nil
