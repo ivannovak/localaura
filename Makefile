@@ -1,4 +1,4 @@
-.PHONY: build install uninstall clean test test-integration test-coverage test-all version
+.PHONY: build install uninstall clean test test-integration test-coverage test-all version verify-install
 
 BINARY_NAME=aura
 INSTALL_PATH=/usr/local/bin
@@ -30,10 +30,25 @@ build:
 
 install: build
 	@echo "Installing Aura CLI to $(INSTALL_PATH)..."
-	@sudo cp $(BINARY_NAME) $(INSTALL_PATH)/
-	@sudo chmod +x $(INSTALL_PATH)/$(BINARY_NAME)
+	@if [ ! -d "$(INSTALL_PATH)" ]; then \
+		echo "Error: $(INSTALL_PATH) does not exist"; \
+		exit 1; \
+	fi
+	@if ! sudo cp $(BINARY_NAME) $(INSTALL_PATH)/; then \
+		echo "Error: Failed to copy binary to $(INSTALL_PATH)"; \
+		exit 1; \
+	fi
+	@if ! sudo chmod +x $(INSTALL_PATH)/$(BINARY_NAME); then \
+		echo "Error: Failed to set executable permissions"; \
+		exit 1; \
+	fi
 	@echo "✅ Aura CLI installed successfully!"
 	@echo "Run 'aura version' to verify installation"
+	@echo ""
+	@echo "Next steps:"
+	@echo "  1. Set up the proxy: aura install"
+	@echo "  2. Start the proxy: aura start"
+	@echo "  3. Test it: open https://whoami.aura"
 
 uninstall:
 	@echo "Uninstalling Aura CLI..."
@@ -70,3 +85,11 @@ version:
 
 dev: build
 	@./$(BINARY_NAME) $(ARGS)
+
+verify-install:
+	@if ! which aura > /dev/null 2>&1; then \
+		echo "❌ aura not found in PATH"; \
+		exit 1; \
+	fi
+	@echo "✅ aura is installed"
+	@aura version
