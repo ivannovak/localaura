@@ -255,6 +255,24 @@ var uninstallCmd = &cobra.Command{
 	},
 }
 
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Show version information",
+	Run: func(cmd *cobra.Command, args []string) {
+		verbose, _ := cmd.Flags().GetBool("verbose")
+
+		if verbose {
+			fmt.Printf("Aura v%s\n", version.Version)
+			fmt.Printf("  Git Commit: %s\n", version.GitCommit)
+			fmt.Printf("  Build Date: %s\n", version.BuildDate)
+			fmt.Printf("  Go Version: %s\n", version.GoVersion)
+			fmt.Printf("  Platform:   %s\n", version.Platform)
+		} else {
+			fmt.Printf("aura version %s\n", version.Version)
+		}
+	},
+}
+
 //nolint:gochecknoinits // init required for cobra command registration
 func init() {
 	rootCmd.AddCommand(installCmd)
@@ -264,8 +282,10 @@ func init() {
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(logsCmd)
 	rootCmd.AddCommand(uninstallCmd)
+	rootCmd.AddCommand(versionCmd)
 
 	logsCmd.Flags().BoolP("follow", "f", false, "Follow log output")
+	versionCmd.Flags().BoolP("verbose", "v", false, "Show detailed version information")
 
 	rootCmd.Version = version.Version
 }
