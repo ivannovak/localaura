@@ -22,7 +22,34 @@ import (
 var embeddedFS embed.FS
 
 const (
+	// Domain configuration
 	auraTLD = ".aura"
+
+	// Network configuration
+	loopbackIP = "127.0.0.2"
+
+	// Container names
+	containerCaddy   = "aura-caddy"
+	containerWhoami  = "aura-whoami"
+	containerCoredns = "aura-coredns"
+	containerPrefix  = "aura-" // Prefix for filtering containers
+
+	// Docker resources
+	networkName       = "aura-proxy"
+	volumeCaddyData   = "aura_caddy_data"
+	volumeCaddyConfig = "aura_caddy_config"
+
+	// File permissions
+	filePermScript = 0600
+	dirPermDefault = 0755
+
+	// Directory names
+	dirCerts        = "certs"
+	dirCertsDomains = "certs/domains"
+	dirCoredns      = "coredns"
+
+	// Filenames
+	fileCorefile = "Corefile"
 )
 
 var (
@@ -74,7 +101,7 @@ var installCmd = &cobra.Command{
 
 		// Create .aura directory
 		logger.Debug("Creating aura directory", "path", auraDir)
-		if err := os.MkdirAll(auraDir, 0755); err != nil {
+		if err := os.MkdirAll(auraDir, dirPermDefault); err != nil {
 			return fmt.Errorf("failed to create aura directory: %w", err)
 		}
 
@@ -172,7 +199,8 @@ var statusCmd = &cobra.Command{
 		fmt.Println("🔍 Checking Aura proxy status...")
 
 		// Check if containers are running
-		output, err := exec.Command("docker", "ps", "--filter", "name=aura-", "--format", "table {{.Names}}\t{{.Status}}").Output()
+		filter := fmt.Sprintf("name=%s", containerPrefix)
+		output, err := exec.Command("docker", "ps", "--filter", filter, "--format", "table {{.Names}}\t{{.Status}}").Output()
 		if err != nil {
 			logger.Warn("Failed to query Docker", "error", err)
 			fmt.Println("❌ Aura proxy is not running")
@@ -202,7 +230,7 @@ var logsCmd = &cobra.Command{
 		if follow {
 			dockerArgs = append(dockerArgs, "-f")
 		}
-		dockerArgs = append(dockerArgs, "aura-caddy")
+		dockerArgs = append(dockerArgs, containerCaddy)
 
 		return runCommand("docker", dockerArgs...)
 	},
@@ -216,7 +244,7 @@ var uninstallCmd = &cobra.Command{
 		fmt.Println("⚠️  This will completely remove Aura proxy:")
 		fmt.Println("   - Stop and remove Docker containers")
 		fmt.Println("   - Remove DNS resolver configuration")
-		fmt.Println("   - Remove loopback address (127.0.0.2)")
+		fmt.Printf("   - Remove loopback address (%s)\n", loopbackIP)
 		fmt.Println("   - Remove all certificates")
 		fmt.Println("   - Remove ~/.aura directory")
 		fmt.Print("\nAre you sure? (y/N): ")
@@ -257,15 +285,15 @@ var uninstallCmd = &cobra.Command{
 
 		// Remove Docker network
 		fmt.Println("🧹 Removing Docker network...")
-		if err := runCommand("docker", "network", "rm", "aura-proxy"); err != nil {
+		if err := runCommand("docker", "network", "rm", networkName); err != nil {
 			// Network might not exist, that's okay
 			fmt.Println("Note: Docker network already removed or doesn't exist")
 		}
 
 		// Remove Docker volumes
 		fmt.Println("🧹 Removing Docker volumes...")
-		_ = runCommand("docker", "volume", "rm", "aura_caddy_data")
-		_ = runCommand("docker", "volume", "rm", "aura_caddy_config")
+		_ = runCommand("docker", "volume", "rm", volumeCaddyData)
+		_ = runCommand("docker", "volume", "rm", volumeCaddyConfig)
 
 		// Remove directory
 		fmt.Println("🧹 Removing ~/.aura directory...")
@@ -441,27 +469,28 @@ func copyConfigs() error {
 		}
 
 		dst := filepath.Join(auraDir, file)
-		if err := os.WriteFile(dst, data, 0600); err != nil {
+		if err := os.WriteFile(dst, data, filePermScript); err != nil {
 			return fmt.Errorf("failed to write %s: %w", file, err)
 		}
 	}
 
 	// Create directories
-	if err := os.MkdirAll(filepath.Join(auraDir, "certs", "domains"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(auraDir, dirCertsDomains), dirPermDefault); err != nil {
 		return fmt.Errorf("failed to create certs directory: %w", err)
 	}
-	if err := os.MkdirAll(filepath.Join(auraDir, "coredns"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(auraDir, dirCoredns), dirPermDefault); err != nil {
 		return fmt.Errorf("failed to create coredns directory: %w", err)
 	}
 
 	// Copy CoreDNS configuration
-	corefileData, err := embeddedFS.ReadFile("embed/coredns/Corefile")
+	corefilePath := filepath.Join("embed", dirCoredns, fileCorefile)
+	corefileData, err := embeddedFS.ReadFile(corefilePath)
 	if err != nil {
 		return fmt.Errorf("failed to read embedded Corefile: %w", err)
 	}
 
-	corefileDst := filepath.Join(auraDir, "coredns", "Corefile")
-	if err := os.WriteFile(corefileDst, corefileData, 0600); err != nil {
+	corefileDst := filepath.Join(auraDir, dirCoredns, fileCorefile)
+	if err := os.WriteFile(corefileDst, corefileData, filePermScript); err != nil {
 		return fmt.Errorf("failed to write Corefile: %w", err)
 	}
 
