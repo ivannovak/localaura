@@ -7,6 +7,40 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CERTS_DIR="$SCRIPT_DIR/certs"
 PLATFORM=$(uname -s)
 
+# Function to check if running as root or sudo available (Linux only)
+check_sudo_linux() {
+    if [ "$PLATFORM" != "Linux" ]; then
+        return 0
+    fi
+
+    if [ "$EUID" -eq 0 ]; then
+        return 0
+    fi
+
+    if ! command -v sudo &> /dev/null; then
+        echo "Error: This script requires sudo on Linux, but sudo is not installed"
+        exit 1
+    fi
+
+    # Test sudo access
+    if ! sudo -n true 2>/dev/null; then
+        echo "This script requires sudo access for:"
+        echo "  - Installing mkcert binary"
+        echo ""
+        echo "You may be prompted for your password."
+        echo ""
+
+        # Prompt for sudo
+        sudo -v || {
+            echo "Error: sudo authentication failed"
+            exit 1
+        }
+    fi
+}
+
+# Check sudo access upfront (Linux only)
+check_sudo_linux
+
 echo "Setting up mkcert for local certificate generation..."
 
 # Check if mkcert is installed

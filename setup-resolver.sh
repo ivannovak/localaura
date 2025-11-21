@@ -3,6 +3,37 @@
 # Setup macOS/Linux DNS resolver for .aura TLD
 set -e
 
+# Function to check if running as root or sudo available
+check_sudo() {
+    if [ "$EUID" -eq 0 ]; then
+        return 0
+    fi
+
+    if ! command -v sudo &> /dev/null; then
+        echo "Error: This script requires sudo, but sudo is not installed"
+        exit 1
+    fi
+
+    # Test sudo access
+    if ! sudo -n true 2>/dev/null; then
+        echo "This script requires sudo access for:"
+        echo "  - Configuring DNS resolver"
+        echo "  - Creating system resolver configuration"
+        echo ""
+        echo "You may be prompted for your password."
+        echo ""
+
+        # Prompt for sudo
+        sudo -v || {
+            echo "Error: sudo authentication failed"
+            exit 1
+        }
+    fi
+}
+
+# Check sudo access upfront
+check_sudo
+
 echo "Configuring DNS resolver for .aura domains..."
 echo ""
 
