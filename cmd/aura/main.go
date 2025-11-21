@@ -11,6 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/ivannovak/aura/pkg/logger"
 	"github.com/ivannovak/aura/pkg/version"
 )
 
@@ -28,6 +29,10 @@ var (
 	domainLabelRegex = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
 
 	auraDir string
+
+	// Log configuration flags
+	logLevel  string
+	logFormat string
 
 	// ANSI color codes
 	teal  = "\033[96m"
@@ -64,24 +69,29 @@ var installCmd = &cobra.Command{
 	Short: "Install Aura proxy system",
 	Long:  `Sets up the Aura proxy system including loopback address, mkcert, and Docker configuration.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logger.Info("Installing Aura proxy system")
 		fmt.Println("🚀 Installing Aura proxy system...")
 
 		// Create .aura directory
+		logger.Debug("Creating aura directory", "path", auraDir)
 		if err := os.MkdirAll(auraDir, 0755); err != nil {
 			return fmt.Errorf("failed to create aura directory: %w", err)
 		}
 
 		// Copy configuration files
+		logger.Info("Copying configuration files")
 		if err := copyConfigs(); err != nil {
 			return fmt.Errorf("failed to copy configs: %w", err)
 		}
 
 		// Run setup script
 		setupScript := filepath.Join(auraDir, "setup.sh")
+		logger.Info("Running setup script", "script", setupScript)
 		if err := runCommand("bash", setupScript); err != nil {
 			return fmt.Errorf("setup failed: %w", err)
 		}
 
+		logger.Info("Aura proxy installed successfully")
 		fmt.Println("✅ Aura proxy installed successfully!")
 		fmt.Println("\nNext steps:")
 		fmt.Println("  1. Start the proxy: aura start")
@@ -94,10 +104,14 @@ var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start Aura proxy",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logger.Info("Starting Aura proxy")
 		fmt.Println("🟢 Starting Aura proxy...")
+
 		if err := runCommandInDir(auraDir, "docker", "compose", "up", "-d"); err != nil {
 			return fmt.Errorf("failed to start proxy: %w", err)
 		}
+
+		logger.Info("Aura proxy started successfully")
 		fmt.Println("✅ Aura proxy started!")
 		fmt.Println("   Test: https://whoami.aura")
 		return nil
@@ -108,10 +122,14 @@ var stopCmd = &cobra.Command{
 	Use:   "stop",
 	Short: "Stop Aura proxy",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logger.Info("Stopping Aura proxy")
 		fmt.Println("🔴 Stopping Aura proxy...")
+
 		if err := runCommandInDir(auraDir, "docker", "compose", "down"); err != nil {
 			return fmt.Errorf("failed to stop proxy: %w", err)
 		}
+
+		logger.Info("Aura proxy stopped successfully")
 		fmt.Println("✅ Aura proxy stopped")
 		return nil
 	},
@@ -127,10 +145,12 @@ var certCmd = &cobra.Command{
 			domain += auraTLD
 		}
 
+		logger.Debug("Validating domain", "domain", domain)
 		if err := validateDomain(domain); err != nil {
 			return fmt.Errorf("invalid domain: %w", err)
 		}
 
+		logger.Info("Generating certificate", "domain", domain)
 		fmt.Printf("🔐 Generating certificate for %s...\n", domain)
 
 		certScript := filepath.Join(auraDir, "add-cert.sh")
@@ -138,6 +158,7 @@ var certCmd = &cobra.Command{
 			return fmt.Errorf("failed to generate certificate: %w", err)
 		}
 
+		logger.Info("Certificate generated successfully", "domain", domain)
 		fmt.Printf("✅ Certificate generated for %s\n", domain)
 		return nil
 	},
@@ -147,19 +168,23 @@ var statusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show Aura proxy status",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logger.Info("Checking Aura proxy status")
 		fmt.Println("🔍 Checking Aura proxy status...")
 
 		// Check if containers are running
 		output, err := exec.Command("docker", "ps", "--filter", "name=aura-", "--format", "table {{.Names}}\t{{.Status}}").Output()
 		if err != nil {
+			logger.Warn("Failed to query Docker", "error", err)
 			fmt.Println("❌ Aura proxy is not running")
 			return nil
 		}
 
 		if len(output) > 0 {
+			logger.Debug("Found running containers", "count", len(strings.Split(string(output), "\n"))-1)
 			fmt.Println("✅ Aura proxy is running")
 			fmt.Println(string(output))
 		} else {
+			logger.Info("No Aura containers running")
 			fmt.Println("❌ Aura proxy is not running")
 			fmt.Println("   Start with: aura start")
 		}
@@ -275,6 +300,12 @@ var versionCmd = &cobra.Command{
 
 //nolint:gochecknoinits // init required for cobra command registration
 func init() {
+	// Add global logging flags
+	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info",
+		"Log level (debug, info, warn, error)")
+	rootCmd.PersistentFlags().StringVar(&logFormat, "log-format", "text",
+		"Log format (text, json)")
+
 	rootCmd.AddCommand(installCmd)
 	rootCmd.AddCommand(startCmd)
 	rootCmd.AddCommand(stopCmd)
@@ -291,26 +322,68 @@ func init() {
 }
 
 func main() {
+	// Initialize logger before executing commands
+	cobra.OnInitialize(initLogger)
+
 	if err := rootCmd.Execute(); err != nil {
+		logger.Error("Command failed", "error", err)
 		os.Exit(1)
 	}
 }
 
+func initLogger() {
+	level := logger.LevelInfo
+	switch logLevel {
+	case "debug":
+		level = logger.LevelDebug
+	case "info":
+		level = logger.LevelInfo
+	case "warn":
+		level = logger.LevelWarn
+	case "error":
+		level = logger.LevelError
+	}
+
+	logger.Init(logger.Config{
+		Level:  level,
+		Format: logFormat,
+		Output: os.Stdout,
+	})
+}
+
 func runCommand(name string, args ...string) error {
+	logger.Debug("Executing command", "name", name, "args", args)
+
 	cmd := exec.Command(name, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
-	return cmd.Run()
+
+	if err := cmd.Run(); err != nil {
+		logger.Error("Command failed", "name", name, "args", args, "error", err)
+		return err
+	}
+
+	logger.Debug("Command completed", "name", name)
+	return nil
 }
 
 func runCommandInDir(dir, name string, args ...string) error {
+	logger.Debug("Executing command in directory", "dir", dir, "name", name, "args", args)
+
 	cmd := exec.Command(name, args...)
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
-	return cmd.Run()
+
+	if err := cmd.Run(); err != nil {
+		logger.Error("Command failed", "dir", dir, "name", name, "args", args, "error", err)
+		return err
+	}
+
+	logger.Debug("Command completed", "name", name)
+	return nil
 }
 
 func validateDomain(domain string) error {
