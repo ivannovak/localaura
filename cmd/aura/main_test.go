@@ -10,12 +10,25 @@ import (
 )
 
 func TestAuraDirPath(t *testing.T) {
-	// Test that auraDir is set correctly
-	homeDir := os.Getenv("HOME")
+	// Test that auraDir is set correctly using os.UserHomeDir()
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("Failed to get user home directory: %v", err)
+	}
 	expectedPath := filepath.Join(homeDir, ".aura")
 
 	if auraDir != expectedPath {
 		t.Errorf("auraDir = %v, want %v", auraDir, expectedPath)
+	}
+
+	// Test that auraDir is not empty
+	if auraDir == "" {
+		t.Error("auraDir should not be empty")
+	}
+
+	// Test that auraDir ends with .aura
+	if !filepath.IsAbs(auraDir) {
+		t.Error("auraDir should be an absolute path")
 	}
 }
 

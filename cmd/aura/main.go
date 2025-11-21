@@ -27,7 +27,7 @@ const (
 var (
 	domainLabelRegex = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
 
-	auraDir = filepath.Join(os.Getenv("HOME"), ".aura")
+	auraDir string
 
 	// ANSI color codes
 	teal  = "\033[96m"
@@ -42,6 +42,15 @@ var (
  ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝
 ` + reset
 )
+
+func init() {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: Unable to determine home directory: %v\n", err)
+		os.Exit(1)
+	}
+	auraDir = filepath.Join(home, ".aura")
+}
 
 var rootCmd = &cobra.Command{
 	Use:   "aura",
