@@ -20,7 +20,19 @@ aura:53 {
     errors
 }
 
-# Fallback for non-.aura domains - forward to system resolver
+# SECURITY NOTE: Fallback DNS resolution
+# This block forwards non-.aura queries to the system resolver.
+# If the CoreDNS container is compromised, this could enable:
+#   - DNS tunneling for data exfiltration
+#   - DNS query logging/tracking
+#   - Malicious query injection
+#
+# Mitigation: System resolver configuration (/etc/resolver/aura on macOS,
+# systemd-resolved on Linux) already restricts CoreDNS to only handle
+# .aura domains, so this fallback is rarely used in practice.
+#
+# For maximum security, consider removing this block entirely.
+# See docs/ADVANCED.md for details.
 . {
     forward . /etc/resolv.conf
     log
