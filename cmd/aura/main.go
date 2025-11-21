@@ -93,6 +93,45 @@ var rootCmd = &cobra.Command{
 		"Aura provides a Docker-based reverse proxy with automatic HTTPS for local development using the .aura TLD.",
 }
 
+// installState tracks what was created during installation for rollback
+type installState struct {
+	createdDir    bool
+	copiedConfigs bool
+	ranSetup      bool
+}
+
+// rollback performs cleanup on installation failure
+func (s *installState) rollback() {
+	logger.Warn("Installation failed, performing rollback")
+
+	if s.ranSetup {
+		logger.Debug("Attempting to cleanup setup changes")
+		// Try to run uninstall scripts if they were copied
+		if s.copiedConfigs {
+			resolverScript := filepath.Join(auraDir, "uninstall-resolver.sh")
+			if _, err := os.Stat(resolverScript); err == nil {
+				logger.Debug("Removing DNS resolver configuration")
+				_ = runCommand("bash", resolverScript)
+			}
+
+			loopbackScript := filepath.Join(auraDir, "uninstall-loopback.sh")
+			if _, err := os.Stat(loopbackScript); err == nil {
+				logger.Debug("Removing loopback address configuration")
+				_ = runCommand("bash", loopbackScript)
+			}
+		}
+	}
+
+	if s.createdDir {
+		logger.Debug("Removing .aura directory", "path", auraDir)
+		if err := os.RemoveAll(auraDir); err != nil {
+			logger.Error("Failed to remove .aura directory during rollback", "error", err)
+		}
+	}
+
+	logger.Info("Rollback complete - system returned to clean state")
+}
+
 var installCmd = &cobra.Command{
 	Use:   "install",
 	Short: "Install Aura proxy system",
@@ -101,24 +140,31 @@ var installCmd = &cobra.Command{
 		logger.Info("Installing Aura proxy system")
 		fmt.Println("🚀 Installing Aura proxy system...")
 
+		state := &installState{}
+
 		// Create .aura directory
 		logger.Debug("Creating aura directory", "path", auraDir)
 		if err := os.MkdirAll(auraDir, dirPermDefault); err != nil {
 			return fmt.Errorf("failed to create aura directory: %w", err)
 		}
+		state.createdDir = true
 
 		// Copy configuration files
 		logger.Info("Copying configuration files")
 		if err := copyConfigs(); err != nil {
+			state.rollback()
 			return fmt.Errorf("failed to copy configs: %w", err)
 		}
+		state.copiedConfigs = true
 
 		// Run setup script with 5 minute timeout
 		setupScript := filepath.Join(auraDir, "setup.sh")
 		logger.Info("Running setup script (timeout: 5m)", "script", setupScript)
 		if err := runCommandWithTimeout(5*time.Minute, "bash", setupScript); err != nil {
+			state.rollback()
 			return fmt.Errorf("setup failed: %w", err)
 		}
+		state.ranSetup = true
 
 		logger.Info("Aura proxy installed successfully")
 		fmt.Println("✅ Aura proxy installed successfully!")
