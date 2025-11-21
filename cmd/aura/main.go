@@ -58,6 +58,18 @@ const (
 var (
 	domainLabelRegex = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
 
+	configFiles = []string{
+		"docker-compose.yml",
+		"docker-compose.example.yml",
+		"setup.sh",
+		"setup-loopback.sh",
+		"setup-resolver.sh",
+		"setup-mkcert.sh",
+		"add-cert.sh",
+		"uninstall-resolver.sh",
+		"uninstall-loopback.sh",
+	}
+
 	auraDir string
 
 	// Log configuration flags
@@ -575,49 +587,76 @@ func validateDomain(domain string) error {
 }
 
 func copyConfigs() error {
-	files := []string{
-		"docker-compose.yml",
-		"docker-compose.example.yml",
-		"setup.sh",
-		"setup-loopback.sh",
-		"setup-resolver.sh",
-		"setup-mkcert.sh",
-		"add-cert.sh",
-		"uninstall-resolver.sh",
-		"uninstall-loopback.sh",
+	if err := copyConfigFiles(); err != nil {
+		return err
 	}
 
-	for _, file := range files {
-		data, err := embeddedFS.ReadFile("embed/" + file)
-		if err != nil {
-			return fmt.Errorf("failed to read embedded %s: %w", file, err)
-		}
+	if err := createDirectories(); err != nil {
+		return err
+	}
 
-		dst := filepath.Join(auraDir, file)
-		if err := os.WriteFile(dst, data, filePermScript); err != nil {
-			return fmt.Errorf("failed to write %s: %w", file, err)
+	if err := copyCorefileConfig(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func copyConfigFiles() error {
+	for _, file := range configFiles {
+		if err := copyEmbeddedFile(file, filepath.Join(auraDir, file)); err != nil {
+			return err
 		}
 	}
+	return nil
+}
 
-	// Create directories
-	if err := os.MkdirAll(filepath.Join(auraDir, dirCertsDomains), dirPermDefault); err != nil {
-		return fmt.Errorf("failed to create certs directory: %w", err)
-	}
-	if err := os.MkdirAll(filepath.Join(auraDir, dirCoredns), dirPermDefault); err != nil {
-		return fmt.Errorf("failed to create coredns directory: %w", err)
+func copyEmbeddedFile(src, dst string) error {
+	data, err := embeddedFS.ReadFile("embed/" + src)
+	if err != nil {
+		return fmt.Errorf("failed to read embedded %s: %w", src, err)
 	}
 
-	// Copy CoreDNS configuration
-	corefilePath := filepath.Join("embed", dirCoredns, fileCorefile)
-	corefileData, err := embeddedFS.ReadFile(corefilePath)
+	if err := os.WriteFile(dst, data, filePermScript); err != nil {
+		return fmt.Errorf("failed to write %s: %w", dst, err)
+	}
+
+	logger.Debug("Copied file", "src", src, "dst", dst)
+	return nil
+}
+
+func createDirectories() error {
+	dirs := []struct {
+		path string
+		perm os.FileMode
+	}{
+		{filepath.Join(auraDir, dirCertsDomains), dirPermDefault},
+		{filepath.Join(auraDir, dirCoredns), dirPermDefault},
+	}
+
+	for _, dir := range dirs {
+		if err := os.MkdirAll(dir.path, dir.perm); err != nil {
+			return fmt.Errorf("failed to create directory %s: %w", dir.path, err)
+		}
+		logger.Debug("Created directory", "path", dir.path, "perm", dir.perm)
+	}
+
+	return nil
+}
+
+func copyCorefileConfig() error {
+	src := filepath.Join(dirCoredns, fileCorefile)
+	dst := filepath.Join(auraDir, dirCoredns, fileCorefile)
+
+	data, err := embeddedFS.ReadFile(filepath.Join("embed", src))
 	if err != nil {
 		return fmt.Errorf("failed to read embedded Corefile: %w", err)
 	}
 
-	corefileDst := filepath.Join(auraDir, dirCoredns, fileCorefile)
-	if err := os.WriteFile(corefileDst, corefileData, filePermScript); err != nil {
+	if err := os.WriteFile(dst, data, filePermScript); err != nil {
 		return fmt.Errorf("failed to write Corefile: %w", err)
 	}
 
+	logger.Debug("Copied Corefile", "dst", dst)
 	return nil
 }
