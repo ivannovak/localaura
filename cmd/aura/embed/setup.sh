@@ -4,6 +4,30 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+AUTO_CONFIRM=false
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -y|--yes)
+            AUTO_CONFIRM=true
+            shift
+            ;;
+        -h|--help)
+            echo "Usage: $0 [-y|--yes] [-h|--help]"
+            echo ""
+            echo "Options:"
+            echo "  -y, --yes    Skip confirmation prompt (useful for CI/CD)"
+            echo "  -h, --help   Show this help message"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Usage: $0 [-y|--yes] [-h|--help]"
+            exit 1
+            ;;
+    esac
+done
 
 echo "========================================"
 echo "     Aura Proxy Setup"
@@ -16,12 +40,17 @@ echo "  3. Install and configure mkcert"
 echo "  4. Create necessary directories"
 echo "  5. Make scripts executable"
 echo ""
-read -p "Continue with setup? (y/N): " -n 1 -r
-echo ""
 
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo "Setup cancelled"
-    exit 0
+if [ "$AUTO_CONFIRM" = false ]; then
+    read -p "Continue with setup? (y/N): " -n 1 -r
+    echo ""
+
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Setup cancelled"
+        exit 0
+    fi
+else
+    echo "Auto-confirm enabled, proceeding with setup..."
 fi
 
 echo ""
