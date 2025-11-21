@@ -261,7 +261,10 @@ services:
 
 ## Contributing
 
-Issues and pull requests welcome at [github.com/ivannovak/aura](https://github.com/ivannovak/aura)
+Issues and pull requests welcome! Please see:
+- [Contributing Guide](CONTRIBUTING.md)
+- [Code of Conduct](.github/CODE_OF_CONDUCT.md)
+- [Security Policy](SECURITY.md)
 
 ---
 
