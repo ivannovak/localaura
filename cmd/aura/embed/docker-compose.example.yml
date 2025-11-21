@@ -1,5 +1,3 @@
-version: '3.8'
-
 # Example Docker Compose file showing how to configure services with Aura proxy
 # Using Docker labels for automatic Caddy configuration
 

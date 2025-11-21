@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   docker-socket-proxy:
     image: tecnativa/docker-socket-proxy:latest@sha256:3400c429c5f9e1b21d62130fb93b16e2e772d4fb7695bd52fc2b743800b9fe9e
