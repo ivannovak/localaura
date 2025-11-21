@@ -18,6 +18,15 @@ aura:53 {
 
     # Enable errors logging
     errors
+
+    # NOTE: Rate limiting not implemented
+    # Rationale: DNS server bound to localhost (127.0.0.2) only, accessible
+    # only from local machine. Risk of DNS query abuse is minimal in this
+    # context. CoreDNS ratelimit plugin would require external plugin setup.
+    # If needed in future, consider:
+    #   - ratelimit plugin (requires CoreDNS rebuild with plugin)
+    #   - iptables/pf firewall rules at OS level
+    #   - Docker container resource limits
 }
 
 # SECURITY NOTE: Fallback DNS resolution
