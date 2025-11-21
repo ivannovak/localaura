@@ -32,14 +32,37 @@ if ! command -v mkcert &> /dev/null; then
 fi
 
 # Create directories if they don't exist
-mkdir -p "$CERTS_DIR"
+mkdir -p "$CERTS_DIR" || {
+    echo "Error: Failed to create certificate directory"
+    exit 1
+}
 
 # Domain name without .aura for file naming
 DOMAIN_NAME="${DOMAIN%.aura}"
 CERT_DIR="$CERTS_DIR/$DOMAIN_NAME"
 
-# Check if certificate already exists
-if [ -d "$CERT_DIR" ]; then
+# Create certificate directory atomically
+mkdir -p "$CERT_DIR" || {
+    echo "Error: Failed to create certificate directory for $DOMAIN"
+    exit 1
+}
+
+# Use a lock file to prevent concurrent generation
+LOCK_FILE="$CERT_DIR/.lock"
+
+# Acquire lock
+exec 200>"$LOCK_FILE"
+if ! flock -n 200; then
+    echo "Error: Certificate generation already in progress for $DOMAIN"
+    echo "If you're sure no other process is running, remove: $LOCK_FILE"
+    exit 1
+fi
+
+# Cleanup lock on exit
+trap 'rm -f "$LOCK_FILE"' EXIT
+
+# Check if certificate already exists after acquiring lock
+if [ -f "$CERT_DIR/cert.pem" ] && [ -f "$CERT_DIR/key.pem" ]; then
     echo "Certificate for $DOMAIN already exists in $CERT_DIR"
     read -p "Do you want to regenerate it? (y/N): " -n 1 -r
     echo
@@ -48,13 +71,12 @@ if [ -d "$CERT_DIR" ]; then
         exit 0
     else
         echo "Regenerating certificate for $DOMAIN..."
-        rm -rf "$CERT_DIR"
+        rm -f "$CERT_DIR/cert.pem" "$CERT_DIR/key.pem"
     fi
 fi
 
 # Generate certificate
 echo "Generating SSL certificate for $DOMAIN..."
-mkdir -p "$CERT_DIR"
 cd "$CERT_DIR"
 
 # Generate certificate with wildcard for subdomains
