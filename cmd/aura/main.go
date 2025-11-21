@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -24,6 +25,8 @@ const (
 )
 
 var (
+	domainLabelRegex = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
+
 	auraDir = filepath.Join(os.Getenv("HOME"), ".aura")
 
 	// ANSI color codes
@@ -113,6 +116,10 @@ var certCmd = &cobra.Command{
 		domain := args[0]
 		if !strings.HasSuffix(domain, auraTLD) {
 			domain += auraTLD
+		}
+
+		if err := validateDomain(domain); err != nil {
+			return fmt.Errorf("invalid domain: %w", err)
 		}
 
 		fmt.Printf("🔐 Generating certificate for %s...\n", domain)
@@ -244,6 +251,41 @@ func runCommandInDir(dir, name string, args ...string) error {
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 	return cmd.Run()
+}
+
+func validateDomain(domain string) error {
+	baseDomain := strings.TrimSuffix(domain, auraTLD)
+
+	if len(domain) > 253 {
+		return fmt.Errorf("domain name too long (max 253 characters)")
+	}
+
+	if baseDomain == "" {
+		return fmt.Errorf("domain name cannot be empty")
+	}
+
+	if strings.Contains(domain, "..") {
+		return fmt.Errorf("invalid domain: contains path traversal")
+	}
+
+	if strings.Contains(domain, "\x00") {
+		return fmt.Errorf("invalid domain: contains null byte")
+	}
+
+	labels := strings.Split(baseDomain, ".")
+	for _, label := range labels {
+		if len(label) == 0 {
+			return fmt.Errorf("invalid domain: empty label")
+		}
+		if len(label) > 63 {
+			return fmt.Errorf("invalid domain: label exceeds 63 characters")
+		}
+		if !domainLabelRegex.MatchString(label) {
+			return fmt.Errorf("invalid domain label '%s': must contain only lowercase letters, numbers, and hyphens", label)
+		}
+	}
+
+	return nil
 }
 
 func copyConfigs() error {

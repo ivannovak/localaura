@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/aura/aura-proxy/pkg/version"
@@ -88,13 +89,28 @@ func TestCertCommandDomainHandling(t *testing.T) {
 			input:    "api.myapp.aura",
 			expected: "api.myapp.aura",
 		},
+		{
+			name:     "short domain",
+			input:    "app",
+			expected: "app.aura",
+		},
+		{
+			name:     "single char",
+			input:    "a",
+			expected: "a.aura",
+		},
+		{
+			name:     "empty",
+			input:    "",
+			expected: ".aura",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Simulate the domain handling logic from certCmd
+			// Simulate the domain handling logic from certCmd using HasSuffix
 			domain := tt.input
-			if len(domain) < 5 || domain[len(domain)-5:] != auraTLD {
+			if !strings.HasSuffix(domain, auraTLD) {
 				domain += auraTLD
 			}
 
@@ -219,5 +235,70 @@ func TestAsciiTitleContainsAura(t *testing.T) {
 
 	if !hasNewline {
 		t.Error("ASCII title should contain newlines (multi-line art)")
+	}
+}
+
+func TestValidateDomain(t *testing.T) {
+	tests := []struct {
+		name    string
+		domain  string
+		wantErr bool
+	}{
+		{"valid simple", "app.aura", false},
+		{"valid subdomain", "api.app.aura", false},
+		{"valid with hyphens", "my-app.aura", false},
+		{"valid multi-level", "api.staging.app.aura", false},
+		{"path traversal", "../../../etc/passwd.aura", true},
+		{"command injection semicolon", "app;rm -rf /.aura", true},
+		{"command injection ampersand", "app&whoami.aura", true},
+		{"null byte", "app\x00.aura", true},
+		{"too long", strings.Repeat("a", 250) + ".aura", true},
+		{"empty", ".aura", true},
+		{"double dot", "a..b.aura", true},
+		{"label too long", strings.Repeat("a", 64) + ".aura", true},
+		{"empty label", "a..aura", true},
+		{"uppercase letters", "MyApp.aura", true},
+		{"special chars", "app@test.aura", true},
+		{"underscore", "my_app.aura", true},
+		{"slash", "app/test.aura", true},
+		{"backslash", "app\\test.aura", true},
+		{"space", "my app.aura", true},
+		{"single char", "a.aura", false},
+		{"numbers", "app123.aura", false},
+		{"hyphen start", "-app.aura", true},
+		{"hyphen end", "app-.aura", true},
+		{"valid long label", strings.Repeat("a", 63) + ".aura", false},
+		{"valid max length", strings.Repeat("a", 59) + "." + strings.Repeat("b", 59) + "." + strings.Repeat("c", 59) + "." + strings.Repeat("d", 59) + ".aura", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateDomain(tt.domain)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateDomain(%q) error = %v, wantErr %v", tt.domain, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateDomainEdgeCases(t *testing.T) {
+	// Test edge cases for short strings
+	tests := []string{"", "a", "ab", "abc", "abcd"}
+	for _, input := range tests {
+		domain := input
+		if !strings.HasSuffix(domain, auraTLD) {
+			domain += auraTLD
+		}
+		// Should not panic
+		err := validateDomain(domain)
+		if input == "" {
+			if err == nil {
+				t.Errorf("expected error for empty domain, got nil")
+			}
+		} else {
+			if err != nil {
+				t.Errorf("unexpected error for %q: %v", input, err)
+			}
+		}
 	}
 }
