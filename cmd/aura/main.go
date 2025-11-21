@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"time"
 
@@ -78,6 +79,30 @@ var (
 )
 
 func init() {
+	// Check platform
+	if runtime.GOOS == "windows" {
+		fmt.Fprintf(os.Stderr, `
+⚠️  Aura does not currently support Windows.
+
+Supported platforms:
+  • macOS 10.14+
+  • Linux (with systemd-resolved)
+
+Alternatives for Windows:
+  • Use WSL2 (Windows Subsystem for Linux)
+  • Use a Linux VM
+
+For WSL2 installation:
+  1. Enable WSL2: wsl --install
+  2. Install Ubuntu: wsl --install -d Ubuntu
+  3. Run Aura inside WSL2
+
+Learn more: https://github.com/ivannovak/aura#requirements
+`)
+		os.Exit(1)
+	}
+
+	// Initialize auraDir
 	home, err := os.UserHomeDir()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: Unable to determine home directory: %v\n", err)
@@ -246,7 +271,7 @@ var statusCmd = &cobra.Command{
 		logger.Info("Checking Aura proxy status")
 		fmt.Println("🔍 Checking Aura proxy status...")
 
-		// Check if containers are running
+		// Check if containers are running with health status
 		filter := fmt.Sprintf("name=%s", containerPrefix)
 		output, err := exec.Command("docker", "ps", "--filter", filter, "--format", "table {{.Names}}\t{{.Status}}").Output()
 		if err != nil {
@@ -259,6 +284,22 @@ var statusCmd = &cobra.Command{
 			logger.Debug("Found running containers", "count", len(strings.Split(string(output), "\n"))-1)
 			fmt.Println("✅ Aura proxy is running")
 			fmt.Println(string(output))
+
+			// Check for unhealthy containers
+			unhealthyOutput, _ := exec.Command("docker", "ps",
+				"--filter", filter,
+				"--filter", "health=unhealthy",
+				"--format", "{{.Names}}").Output()
+
+			if len(unhealthyOutput) > 0 {
+				unhealthyContainers := strings.TrimSpace(string(unhealthyOutput))
+				if unhealthyContainers != "" {
+					logger.Warn("Unhealthy containers detected", "containers", unhealthyContainers)
+					fmt.Println("\n⚠️  Warning: Some containers are unhealthy:")
+					fmt.Println(unhealthyContainers)
+					fmt.Println("   Check logs: aura logs -f")
+				}
+			}
 		} else {
 			logger.Info("No Aura containers running")
 			fmt.Println("❌ Aura proxy is not running")
