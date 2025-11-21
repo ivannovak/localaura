@@ -1,4 +1,4 @@
-.PHONY: build install uninstall clean test test-integration test-coverage test-all version verify-install
+.PHONY: build build-reproducible install uninstall clean test test-integration test-coverage test-all version verify-install
 
 BINARY_NAME=aura
 INSTALL_PATH=/usr/local/bin
@@ -19,6 +19,9 @@ LDFLAGS=-ldflags "\
 	-X 'github.com/ivannovak/aura/pkg/version.Platform=$(PLATFORM)' \
 	-s -w"
 
+# Build flags for reproducibility
+BUILDFLAGS=-trimpath -buildmode=pie
+
 build:
 	@echo "Building Aura CLI..."
 	@echo "  Version:    $(VERSION)"
@@ -26,7 +29,16 @@ build:
 	@echo "  Build Date: $(BUILD_DATE)"
 	@echo "  Go Version: $(GO_VERSION)"
 	@echo "  Platform:   $(PLATFORM)"
-	@go build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/aura
+	@CGO_ENABLED=0 go build $(BUILDFLAGS) $(LDFLAGS) -o $(BINARY_NAME) ./cmd/aura
+
+build-reproducible:
+	@echo "Building reproducible binary..."
+	@echo "  Version:    $(VERSION)"
+	@echo "  Commit:     $(GIT_COMMIT)"
+	@echo "  Go Version: $(GO_VERSION)"
+	@echo "  Platform:   $(PLATFORM)"
+	@CGO_ENABLED=0 SOURCE_DATE_EPOCH=$(shell git log -1 --format=%ct) \
+		go build $(BUILDFLAGS) $(LDFLAGS) -o $(BINARY_NAME) ./cmd/aura
 
 install: build
 	@echo "Installing Aura CLI to $(INSTALL_PATH)..."
