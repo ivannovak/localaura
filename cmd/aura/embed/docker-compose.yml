@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   docker-socket-proxy:
-    image: tecnativa/docker-socket-proxy:latest
+    image: tecnativa/docker-socket-proxy:latest@sha256:3400c429c5f9e1b21d62130fb93b16e2e772d4fb7695bd52fc2b743800b9fe9e
     container_name: aura-docker-proxy
     restart: unless-stopped
     environment:
@@ -17,7 +17,7 @@ services:
       - aura-proxy
 
   caddy:
-    image: lucaslorentz/caddy-docker-proxy:ci-alpine
+    image: lucaslorentz/caddy-docker-proxy:ci-alpine@sha256:24faf1015b45a026b205a1961ef2e4b0ea15a593dc05e89b7911eec2ccb1c3e8
     container_name: aura-caddy
     restart: unless-stopped
     ports:
@@ -40,7 +40,7 @@ services:
       caddy: ""
 
   whoami:
-    image: traefik/whoami
+    image: traefik/whoami:latest@sha256:200689790a0a0ea48ca45992e0450bc26ccab5307375b41c84dfc4f2475937ab
     container_name: aura-whoami
     restart: unless-stopped
     networks:
@@ -56,7 +56,7 @@ services:
       caddy.encode: gzip
 
   coredns:
-    image: coredns/coredns:latest
+    image: coredns/coredns:latest@sha256:9b9128672209474da07c91439bf15ed704ae05ad918dd6454e5b6ae14e35fee6
     container_name: aura-coredns
     restart: unless-stopped
     command: -conf /config/Corefile
