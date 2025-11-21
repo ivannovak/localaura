@@ -1,6 +1,21 @@
 version: '3.8'
 
 services:
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:latest
+    container_name: aura-docker-proxy
+    restart: unless-stopped
+    environment:
+      CONTAINERS: 1
+      NETWORKS: 1
+      SERVICES: 0
+      TASKS: 0
+      POST: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - aura-proxy
+
   caddy:
     image: lucaslorentz/caddy-docker-proxy:ci-alpine
     container_name: aura-caddy
@@ -11,7 +26,6 @@ services:
       - "127.0.0.2:443:443"
       - "127.0.0.2:443:443/udp" # HTTP/3
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./certs:/certs:ro
       - caddy_data:/data
       - caddy_config:/config
@@ -19,6 +33,9 @@ services:
       - aura-proxy
     environment:
       - CADDY_INGRESS_NETWORKS=aura-proxy
+      - CADDY_DOCKER_ENDPOINT=tcp://docker-socket-proxy:2375
+    depends_on:
+      - docker-socket-proxy
     labels:
       caddy: ""
 
