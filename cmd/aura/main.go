@@ -16,7 +16,7 @@ import (
 
 //go:embed embed/docker-compose.yml embed/docker-compose.example.yml
 //go:embed embed/setup.sh embed/setup-loopback.sh embed/setup-resolver.sh embed/setup-mkcert.sh
-//go:embed embed/add-cert.sh embed/uninstall-resolver.sh
+//go:embed embed/add-cert.sh embed/uninstall-resolver.sh embed/uninstall-loopback.sh
 //go:embed embed/coredns/Corefile
 var embeddedFS embed.FS
 
@@ -186,9 +186,15 @@ var logsCmd = &cobra.Command{
 var uninstallCmd = &cobra.Command{
 	Use:   "uninstall",
 	Short: "Uninstall Aura proxy system",
+	Long:  `Removes Aura proxy system including DNS configuration, loopback address, and all files.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("⚠️  This will remove Aura proxy and all certificates.")
-		fmt.Print("Are you sure? (y/N): ")
+		fmt.Println("⚠️  This will completely remove Aura proxy:")
+		fmt.Println("   - Stop and remove Docker containers")
+		fmt.Println("   - Remove DNS resolver configuration")
+		fmt.Println("   - Remove loopback address (127.0.0.2)")
+		fmt.Println("   - Remove all certificates")
+		fmt.Println("   - Remove ~/.aura directory")
+		fmt.Print("\nAre you sure? (y/N): ")
 
 		var response string
 		if _, err := fmt.Scanln(&response); err != nil {
@@ -200,7 +206,8 @@ var uninstallCmd = &cobra.Command{
 			return nil
 		}
 
-		// Stop containers
+		// Stop containers and remove volumes
+		fmt.Println("\n🧹 Stopping containers...")
 		if err := runCommandInDir(auraDir, "docker", "compose", "down", "-v"); err != nil {
 			fmt.Printf("Warning: failed to stop containers: %v\n", err)
 		}
@@ -208,18 +215,42 @@ var uninstallCmd = &cobra.Command{
 		// Remove DNS resolver configuration
 		uninstallResolverScript := filepath.Join(auraDir, "uninstall-resolver.sh")
 		if _, err := os.Stat(uninstallResolverScript); err == nil {
-			fmt.Println("🧹 Cleaning up DNS resolver...")
+			fmt.Println("🧹 Removing DNS resolver configuration...")
 			if err := runCommand("bash", uninstallResolverScript); err != nil {
 				fmt.Printf("Warning: failed to cleanup DNS resolver: %v\n", err)
 			}
 		}
 
+		// Remove loopback address configuration
+		uninstallLoopbackScript := filepath.Join(auraDir, "uninstall-loopback.sh")
+		if _, err := os.Stat(uninstallLoopbackScript); err == nil {
+			fmt.Println("🧹 Removing loopback address configuration...")
+			if err := runCommand("bash", uninstallLoopbackScript); err != nil {
+				fmt.Printf("Warning: failed to cleanup loopback address: %v\n", err)
+			}
+		}
+
+		// Remove Docker network
+		fmt.Println("🧹 Removing Docker network...")
+		if err := runCommand("docker", "network", "rm", "aura-proxy"); err != nil {
+			// Network might not exist, that's okay
+			fmt.Println("Note: Docker network already removed or doesn't exist")
+		}
+
+		// Remove Docker volumes
+		fmt.Println("🧹 Removing Docker volumes...")
+		_ = runCommand("docker", "volume", "rm", "aura_caddy_data")
+		_ = runCommand("docker", "volume", "rm", "aura_caddy_config")
+
 		// Remove directory
+		fmt.Println("🧹 Removing ~/.aura directory...")
 		if err := os.RemoveAll(auraDir); err != nil {
 			return fmt.Errorf("failed to remove aura directory: %w", err)
 		}
 
-		fmt.Println("✅ Aura proxy uninstalled")
+		fmt.Println("\n✅ Aura proxy completely uninstalled!")
+		fmt.Println("\nOptional: To remove the CLI binary:")
+		fmt.Println("  sudo rm /usr/local/bin/aura")
 		return nil
 	},
 }
@@ -307,6 +338,7 @@ func copyConfigs() error {
 		"setup-mkcert.sh",
 		"add-cert.sh",
 		"uninstall-resolver.sh",
+		"uninstall-loopback.sh",
 	}
 
 	for _, file := range files {
