@@ -11,7 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/aura/aura-proxy/pkg/version"
+	"github.com/ivannovak/aura/pkg/version"
 )
 
 //go:embed embed/docker-compose.yml embed/docker-compose.example.yml

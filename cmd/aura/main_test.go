@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aura/aura-proxy/pkg/version"
+	"github.com/ivannovak/aura/pkg/version"
 )
 
 func TestAuraDirPath(t *testing.T) {

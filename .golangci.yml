@@ -13,7 +13,7 @@ linters-settings:
   lll:
     line-length: 140
   goimports:
-    local-prefixes: github.com/aura/aura-proxy
+    local-prefixes: github.com/ivannovak/aura
   gocritic:
     enabled-tags:
       - diagnostic
