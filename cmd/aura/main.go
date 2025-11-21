@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"fmt"
 	"os"
@@ -8,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -111,10 +113,10 @@ var installCmd = &cobra.Command{
 			return fmt.Errorf("failed to copy configs: %w", err)
 		}
 
-		// Run setup script
+		// Run setup script with 5 minute timeout
 		setupScript := filepath.Join(auraDir, "setup.sh")
-		logger.Info("Running setup script", "script", setupScript)
-		if err := runCommand("bash", setupScript); err != nil {
+		logger.Info("Running setup script (timeout: 5m)", "script", setupScript)
+		if err := runCommandWithTimeout(5*time.Minute, "bash", setupScript); err != nil {
 			return fmt.Errorf("setup failed: %w", err)
 		}
 
@@ -379,15 +381,32 @@ func initLogger() {
 	})
 }
 
-func runCommand(name string, args ...string) error {
-	logger.Debug("Executing command", "name", name, "args", args)
+// runCommandWithTimeout executes a command with a timeout
+func runCommandWithTimeout(timeout time.Duration, name string, args ...string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
 
-	cmd := exec.Command(name, args...)
+	return runCommandWithContext(ctx, name, args...)
+}
+
+// runCommandWithContext executes a command with context support
+func runCommandWithContext(ctx context.Context, name string, args ...string) error {
+	logger.Debug("Executing command with context", "name", name, "args", args)
+
+	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 
 	if err := cmd.Run(); err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			logger.Error("Command timed out", "name", name, "args", args)
+			return fmt.Errorf("command timed out: %w", err)
+		}
+		if ctx.Err() == context.Canceled {
+			logger.Warn("Command canceled", "name", name, "args", args)
+			return fmt.Errorf("command canceled: %w", err)
+		}
 		logger.Error("Command failed", "name", name, "args", args, "error", err)
 		return err
 	}
@@ -396,22 +415,41 @@ func runCommand(name string, args ...string) error {
 	return nil
 }
 
-func runCommandInDir(dir, name string, args ...string) error {
-	logger.Debug("Executing command in directory", "dir", dir, "name", name, "args", args)
+// runCommand executes a command without timeout (backwards compatible)
+func runCommand(name string, args ...string) error {
+	return runCommandWithContext(context.Background(), name, args...)
+}
 
-	cmd := exec.Command(name, args...)
+// runCommandInDirWithContext executes a command in a directory with context support
+func runCommandInDirWithContext(ctx context.Context, dir, name string, args ...string) error {
+	logger.Debug("Executing command in directory with context", "dir", dir, "name", name, "args", args)
+
+	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 
 	if err := cmd.Run(); err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			logger.Error("Command timed out", "dir", dir, "name", name, "args", args)
+			return fmt.Errorf("command timed out: %w", err)
+		}
+		if ctx.Err() == context.Canceled {
+			logger.Warn("Command canceled", "dir", dir, "name", name, "args", args)
+			return fmt.Errorf("command canceled: %w", err)
+		}
 		logger.Error("Command failed", "dir", dir, "name", name, "args", args, "error", err)
 		return err
 	}
 
 	logger.Debug("Command completed", "name", name)
 	return nil
+}
+
+// runCommandInDir executes a command in a directory without timeout (backwards compatible)
+func runCommandInDir(dir, name string, args ...string) error {
+	return runCommandInDirWithContext(context.Background(), dir, name, args...)
 }
 
 func validateDomain(domain string) error {
