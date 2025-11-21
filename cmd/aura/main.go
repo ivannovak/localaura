@@ -588,15 +588,15 @@ func validateDomain(domain string) error {
 
 func copyConfigs() error {
 	if err := copyConfigFiles(); err != nil {
-		return err
+		return fmt.Errorf("failed to copy config files: %w", err)
 	}
 
 	if err := createDirectories(); err != nil {
-		return err
+		return fmt.Errorf("failed to create directories: %w", err)
 	}
 
 	if err := copyCorefileConfig(); err != nil {
-		return err
+		return fmt.Errorf("failed to copy Corefile: %w", err)
 	}
 
 	return nil
@@ -605,7 +605,7 @@ func copyConfigs() error {
 func copyConfigFiles() error {
 	for _, file := range configFiles {
 		if err := copyEmbeddedFile(file, filepath.Join(auraDir, file)); err != nil {
-			return err
+			return fmt.Errorf("failed to copy %s: %w", file, err)
 		}
 	}
 	return nil
