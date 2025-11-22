@@ -43,8 +43,11 @@ jobs:
     - name: Run go vet
       run: go vet ./...
 
-    - name: Run tests
+    - name: Run unit tests
       run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+
+    - name: Run integration tests
+      run: go test -v -race -tags=integration ./...
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
@@ -123,7 +126,6 @@ jobs:
       with:
         scandir: '.'
         severity: warning
-      continue-on-error: true
 
   docker-test:
     name: Docker Environment Test
@@ -157,7 +159,6 @@ jobs:
       with:
         use-quiet-mode: 'yes'
         config-file: '.github/markdown-link-check-config.json'
-      continue-on-error: true
 
     - name: Verify all docs exist
       run: |
@@ -176,22 +177,26 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+
     - name: Run Gosec Security Scanner
       uses: securego/gosec@master
       with:
-        args: '-no-fail -fmt sarif -out results.sarif ./...'
-      continue-on-error: true
+        args: '-fmt sarif -out results.sarif ./...'
 
     - name: Upload SARIF file
       uses: github/codeql-action/upload-sarif@v3
       with:
         sarif_file: results.sarif
-      continue-on-error: true
+      if: always()
 
   summary:
     name: CI Summary
     runs-on: ubuntu-latest
-    needs: [test, lint, build, docker-test, docs-check]
+    needs: [test, lint, build, shellcheck, docker-test, docs-check, security]
     if: always()
 
     steps:
@@ -201,12 +206,16 @@ jobs:
         echo "- Tests: ${{ needs.test.result }}"
         echo "- Lint: ${{ needs.lint.result }}"
         echo "- Build: ${{ needs.build.result }}"
+        echo "- Shellcheck: ${{ needs.shellcheck.result }}"
         echo "- Docker Test: ${{ needs.docker-test.result }}"
         echo "- Docs Check: ${{ needs.docs-check.result }}"
+        echo "- Security: ${{ needs.security.result }}"
 
         if [ "${{ needs.test.result }}" != "success" ] || \
            [ "${{ needs.lint.result }}" != "success" ] || \
-           [ "${{ needs.build.result }}" != "success" ]; then
+           [ "${{ needs.build.result }}" != "success" ] || \
+           [ "${{ needs.shellcheck.result }}" != "success" ] || \
+           [ "${{ needs.security.result }}" != "success" ]; then
           echo "❌ CI pipeline failed"
           exit 1
         else

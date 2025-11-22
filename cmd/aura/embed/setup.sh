@@ -88,15 +88,49 @@ if ! command -v mkcert &> /dev/null; then
 else
     mkdir -p "$SCRIPT_DIR/certs/domains/whoami"
     cd "$SCRIPT_DIR/certs/domains/whoami"
+
+    echo "Generating certificate with mkcert..."
     mkcert "whoami.aura" "*.whoami.aura" localhost 127.0.0.1 127.0.0.2 ::1
-    # Rename to standard names
+
+    # Find generated files explicitly
+    CERT_FILE=""
+    KEY_FILE=""
+
     for file in *.pem; do
-        if [[ "$file" == *-key.pem ]]; then
-            mv "$file" "key.pem"
+        if [[ "$file" == *"-key.pem" ]]; then
+            KEY_FILE="$file"
         else
-            mv "$file" "cert.pem"
+            CERT_FILE="$file"
         fi
     done
+
+    # Verify we found both files
+    if [[ -z "$CERT_FILE" ]]; then
+        echo "Error: Certificate file not found after mkcert generation"
+        ls -la
+        exit 1
+    fi
+
+    if [[ -z "$KEY_FILE" ]]; then
+        echo "Error: Private key file not found after mkcert generation"
+        ls -la
+        exit 1
+    fi
+
+    # Rename to standard names
+    echo "Renaming certificate files..."
+    mv "$CERT_FILE" "cert.pem"
+    mv "$KEY_FILE" "key.pem"
+
+    # Verify final files exist
+    if [[ ! -f "cert.pem" ]] || [[ ! -f "key.pem" ]]; then
+        echo "Error: Failed to create cert.pem or key.pem"
+        ls -la
+        exit 1
+    fi
+
+    echo "✓ Certificate files created successfully"
+    chmod 600 cert.pem key.pem
     echo "✓ WhoAmI certificate generated"
 fi
 echo ""

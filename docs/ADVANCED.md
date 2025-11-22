@@ -442,6 +442,98 @@ labels:
   caddy.request_body.max_size: "10MB"
 ```
 
+### DNS Security Considerations
+
+#### CoreDNS Fallback Behavior
+
+By default, CoreDNS forwards non-.aura queries to your system resolver.
+
+**Security Implications**:
+
+If the CoreDNS container is compromised, an attacker could:
+- Use DNS tunneling to exfiltrate data
+- Log all your DNS queries
+- Inject malicious DNS responses
+
+**Current Mitigations**:
+
+1. **Split DNS Configuration** (Recommended):
+   Your system is already configured to only use CoreDNS for .aura domains:
+
+   **macOS**:
+   ```bash
+   cat /etc/resolver/aura
+   # nameserver 127.0.0.2
+   # Only .aura queries go to CoreDNS
+   ```
+
+   **Linux**:
+   ```bash
+   cat /etc/systemd/resolved.conf.d/aura.conf
+   # DNS=127.0.0.2
+   # Domains=~aura
+   # Only .aura queries go to CoreDNS
+   ```
+
+2. **Network Isolation**:
+   CoreDNS runs on `aura-proxy` network, isolated from other containers.
+
+3. **No External Exposure**:
+   CoreDNS binds to 127.0.0.2 (localhost), not accessible from network.
+
+4. **Docker Socket Proxy**:
+   Caddy's Docker API access is restricted via proxy to prevent container information exposure.
+
+**Additional Hardening Options**:
+
+#### Option 1: Disable Fallback (Maximum Security)
+
+Remove the fallback block from `~/.aura/coredns/Corefile`:
+
+```bash
+# Edit Corefile
+vim ~/.aura/coredns/Corefile
+
+# Remove or comment out:
+# . {
+#     forward . /etc/resolv.conf
+#     log
+#     errors
+# }
+
+# Restart
+aura stop && aura start
+```
+
+**Impact**: Non-.aura queries to CoreDNS will fail (harmless, as system resolver handles them).
+
+#### Option 2: Monitor DNS Queries
+
+Watch CoreDNS logs for suspicious activity:
+
+```bash
+docker logs -f aura-coredns | grep -v "\\.aura"
+# Shows all non-.aura queries (should be minimal)
+```
+
+#### Option 3: Network Isolation
+
+Further isolate CoreDNS on dedicated network:
+
+```yaml
+# docker-compose.yml
+services:
+  coredns:
+    networks:
+      - aura-dns-only  # Separate from aura-proxy
+
+networks:
+  aura-dns-only:
+    internal: true  # No external access
+```
+
+**Recommendation**: Current configuration (split DNS) provides good security for local development. Fallback rarely used in practice.
+
 ---
 
 ## Custom Error Pages

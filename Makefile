@@ -1,18 +1,66 @@
-.PHONY: build install uninstall clean test
+.PHONY: build build-reproducible install uninstall clean test test-integration test-coverage test-all version verify-install
 
 BINARY_NAME=aura
 INSTALL_PATH=/usr/local/bin
 
+# Build variables
+VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+GIT_COMMIT=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_DATE=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+GO_VERSION=$(shell go version | awk '{print $$3}')
+PLATFORM=$(shell go env GOOS)/$(shell go env GOARCH)
+
+# Linker flags
+LDFLAGS=-ldflags "\
+	-X 'github.com/ivannovak/aura/pkg/version.Version=$(VERSION)' \
+	-X 'github.com/ivannovak/aura/pkg/version.GitCommit=$(GIT_COMMIT)' \
+	-X 'github.com/ivannovak/aura/pkg/version.BuildDate=$(BUILD_DATE)' \
+	-X 'github.com/ivannovak/aura/pkg/version.GoVersion=$(GO_VERSION)' \
+	-X 'github.com/ivannovak/aura/pkg/version.Platform=$(PLATFORM)' \
+	-s -w"
+
+# Build flags for reproducibility
+BUILDFLAGS=-trimpath -buildmode=pie
+
 build:
 	@echo "Building Aura CLI..."
-	@go build -o $(BINARY_NAME) ./cmd/aura
+	@echo "  Version:    $(VERSION)"
+	@echo "  Commit:     $(GIT_COMMIT)"
+	@echo "  Build Date: $(BUILD_DATE)"
+	@echo "  Go Version: $(GO_VERSION)"
+	@echo "  Platform:   $(PLATFORM)"
+	@CGO_ENABLED=0 go build $(BUILDFLAGS) $(LDFLAGS) -o $(BINARY_NAME) ./cmd/aura
+
+build-reproducible:
+	@echo "Building reproducible binary..."
+	@echo "  Version:    $(VERSION)"
+	@echo "  Commit:     $(GIT_COMMIT)"
+	@echo "  Go Version: $(GO_VERSION)"
+	@echo "  Platform:   $(PLATFORM)"
+	@CGO_ENABLED=0 SOURCE_DATE_EPOCH=$(shell git log -1 --format=%ct) \
+		go build $(BUILDFLAGS) $(LDFLAGS) -o $(BINARY_NAME) ./cmd/aura
 
 install: build
 	@echo "Installing Aura CLI to $(INSTALL_PATH)..."
-	@sudo cp $(BINARY_NAME) $(INSTALL_PATH)/
-	@sudo chmod +x $(INSTALL_PATH)/$(BINARY_NAME)
+	@if [ ! -d "$(INSTALL_PATH)" ]; then \
+		echo "Error: $(INSTALL_PATH) does not exist"; \
+		exit 1; \
+	fi
+	@if ! sudo cp $(BINARY_NAME) $(INSTALL_PATH)/; then \
+		echo "Error: Failed to copy binary to $(INSTALL_PATH)"; \
+		exit 1; \
+	fi
+	@if ! sudo chmod +x $(INSTALL_PATH)/$(BINARY_NAME); then \
+		echo "Error: Failed to set executable permissions"; \
+		exit 1; \
+	fi
 	@echo "✅ Aura CLI installed successfully!"
-	@echo "Run 'aura install' to set up the proxy system"
+	@echo "Run 'aura version' to verify installation"
+	@echo ""
+	@echo "Next steps:"
+	@echo "  1. Set up the proxy: aura install"
+	@echo "  2. Start the proxy: aura start"
+	@echo "  3. Test it: open https://whoami.aura"
 
 uninstall:
 	@echo "Uninstalling Aura CLI..."
@@ -24,7 +72,36 @@ clean:
 	@go clean
 
 test:
-	@go test ./...
+	@go test -v ./...
+
+test-integration:
+	@echo "Running integration tests..."
+	@go test -v -tags=integration ./...
+
+test-coverage:
+	@echo "Running tests with coverage..."
+	@go test -v -coverprofile=coverage.out ./...
+	@go tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report: coverage.html"
+	@go tool cover -func=coverage.out | grep total | awk '{print "Total coverage: " $$3}'
+
+test-all: test test-integration test-coverage
+	@echo "All tests completed!"
+
+version:
+	@echo "Version:    $(VERSION)"
+	@echo "Commit:     $(GIT_COMMIT)"
+	@echo "Build Date: $(BUILD_DATE)"
+	@echo "Go Version: $(GO_VERSION)"
+	@echo "Platform:   $(PLATFORM)"
 
 dev: build
 	@./$(BINARY_NAME) $(ARGS)
+
+verify-install:
+	@if ! which aura > /dev/null 2>&1; then \
+		echo "❌ aura not found in PATH"; \
+		exit 1; \
+	fi
+	@echo "✅ aura is installed"
+	@aura version
