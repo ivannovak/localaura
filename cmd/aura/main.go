@@ -286,6 +286,7 @@ var statusCmd = &cobra.Command{
 
 		// Check if containers are running with health status
 		filter := fmt.Sprintf("name=%s", containerPrefix)
+		// #nosec G204 - filter is constructed from constant containerPrefix, not user input
 		output, err := exec.Command("docker", "ps", "--filter", filter, "--format", "table {{.Names}}\t{{.Status}}").Output()
 		if err != nil {
 			logger.Warn("Failed to query Docker", "error", err)
@@ -299,6 +300,7 @@ var statusCmd = &cobra.Command{
 			fmt.Println(string(output))
 
 			// Check for unhealthy containers
+			// #nosec G204 - filter is constructed from constant containerPrefix, not user input
 			unhealthyOutput, _ := exec.Command("docker", "ps",
 				"--filter", filter,
 				"--filter", "health=unhealthy",

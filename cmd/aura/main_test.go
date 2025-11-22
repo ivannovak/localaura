@@ -673,8 +673,8 @@ func TestValidateDomainEdgeCases(t *testing.T) {
 	}
 }
 
-func TestCopyConfigs(t *testing.T) {
-	// Test copyConfigs orchestration function
+func TestCopyConfigsUnit(t *testing.T) {
+	// Test copyConfigs orchestration function (unit test)
 	tempDir := t.TempDir()
 
 	origAuraDir := auraDir
