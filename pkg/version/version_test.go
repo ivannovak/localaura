@@ -114,10 +114,11 @@ func TestFullVersionFormat(t *testing.T) {
 
 func TestVersionVariablesCanBeOverridden(t *testing.T) {
 	// Test that build-time variables can be set
+	const testVersion = "test-version"
 	originalVersion := Version
 
-	Version = "test-version"
-	if Version != "test-version" {
+	Version = testVersion
+	if Version != testVersion {
 		t.Error("Version should be settable")
 	}
 

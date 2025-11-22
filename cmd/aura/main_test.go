@@ -214,6 +214,7 @@ func TestInitLogger(t *testing.T) {
 	}
 }
 
+//nolint:unparam // t is required by testing framework even if unused
 func TestInitLoggerInvalidLevel(t *testing.T) {
 	// Save original
 	origLevel := logLevel
@@ -632,7 +633,12 @@ func TestValidateDomain(t *testing.T) {
 		{"hyphen start", "-app.aura", true},
 		{"hyphen end", "app-.aura", true},
 		{"valid long label", strings.Repeat("a", 63) + ".aura", false},
-		{"valid max length", strings.Repeat("a", 59) + "." + strings.Repeat("b", 59) + "." + strings.Repeat("c", 59) + "." + strings.Repeat("d", 59) + ".aura", false},
+		{
+			"valid max length",
+			strings.Repeat("a", 59) + "." + strings.Repeat("b", 59) + "." +
+				strings.Repeat("c", 59) + "." + strings.Repeat("d", 59) + ".aura",
+			false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -789,17 +795,19 @@ func TestInstallStateRollbackWithScripts(t *testing.T) {
 	auraDir = origAuraDir
 }
 
+//nolint:unparam // t is required by testing framework even if unused
 func TestVersionCommand(t *testing.T) {
 	// Test version command execution
 	versionCmd.Run(versionCmd, []string{})
 	// If it doesn't panic, test passes
 }
 
+//nolint:unparam // t is required by testing framework even if unused
 func TestVersionCommandVerbose(t *testing.T) {
 	// Test version command with verbose flag
-	versionCmd.Flags().Set("verbose", "true")
+	_ = versionCmd.Flags().Set("verbose", "true")
 	versionCmd.Run(versionCmd, []string{})
-	versionCmd.Flags().Set("verbose", "false")
+	_ = versionCmd.Flags().Set("verbose", "false")
 	// If it doesn't panic, test passes
 }
 
@@ -880,6 +888,7 @@ func TestRunCommandInDirWithContextCancel(t *testing.T) {
 	}
 }
 
+//nolint:unparam // t is required by testing framework even if unused
 func TestStatusCommand(t *testing.T) {
 	// Test status command - it may error if Docker isn't running but that's OK
 	// We're testing that it doesn't panic
@@ -887,52 +896,56 @@ func TestStatusCommand(t *testing.T) {
 	// If it doesn't panic, test passes
 }
 
+//nolint:unparam // t is required by testing framework even if unused
 func TestLogsCommand(t *testing.T) {
 	// Test logs command - set follow flag to false to avoid blocking
-	logsCmd.Flags().Set("follow", "false")
+	_ = logsCmd.Flags().Set("follow", "false")
 	_ = logsCmd.RunE(logsCmd, []string{})
 	// If it doesn't panic, test passes
 }
 
+//nolint:unparam // t is required by testing framework even if unused
 func TestLogsCommandWithFollow(t *testing.T) {
 	// Test that we can set the follow flag (won't actually follow in test)
-	logsCmd.Flags().Set("follow", "true")
+	_ = logsCmd.Flags().Set("follow", "true")
 	// Don't actually execute since it would block
-	logsCmd.Flags().Set("follow", "false")
+	_ = logsCmd.Flags().Set("follow", "false")
 }
 
 func TestInstallCommandState(t *testing.T) {
 	// Test that install command can be called
 	// It will likely fail due to missing Docker/setup, but we're testing structure
 	tempDir := t.TempDir()
-	
+
 	origAuraDir := auraDir
 	auraDir = tempDir
-	
+
 	// Try to run install - it will fail but shouldn't panic
 	_ = installCmd.RunE(installCmd, []string{})
-	
+
 	auraDir = origAuraDir
 }
 
 func TestUninstallCommand(t *testing.T) {
 	// Test uninstall command structure
 	tempDir := t.TempDir()
-	
+
 	origAuraDir := auraDir
 	auraDir = tempDir
-	
+
 	// Try to run uninstall - it will fail but shouldn't panic
 	_ = uninstallCmd.RunE(uninstallCmd, []string{})
-	
+
 	auraDir = origAuraDir
 }
 
+//nolint:unparam // t is required by testing framework even if unused
 func TestStartCommand(t *testing.T) {
 	// Test start command - will fail without docker-compose.yml but shouldn't panic
 	_ = startCmd.RunE(startCmd, []string{})
 }
 
+//nolint:unparam // t is required by testing framework even if unused
 func TestStopCommand(t *testing.T) {
 	// Test stop command - will error if no containers running but shouldn't panic
 	_ = stopCmd.RunE(stopCmd, []string{})
@@ -944,20 +957,20 @@ func TestInitFunction(t *testing.T) {
 	if rootCmd == nil {
 		t.Error("rootCmd should be initialized")
 	}
-	
+
 	// Check that commands were added
 	commands := rootCmd.Commands()
 	if len(commands) == 0 {
 		t.Error("Expected commands to be added to rootCmd")
 	}
-	
+
 	// Verify some expected commands exist
 	expectedCommands := []string{"install", "start", "stop", "cert", "status", "logs", "uninstall", "version"}
 	foundCommands := make(map[string]bool)
 	for _, cmd := range commands {
 		foundCommands[cmd.Name()] = true
 	}
-	
+
 	for _, expected := range expectedCommands {
 		if !foundCommands[expected] {
 			t.Errorf("Expected command %q not found in rootCmd", expected)
@@ -970,7 +983,7 @@ func TestRootCommand(t *testing.T) {
 	if rootCmd.Use != "aura" {
 		t.Errorf("Expected rootCmd.Use to be 'aura', got %q", rootCmd.Use)
 	}
-	
+
 	if rootCmd.Short == "" {
 		t.Error("rootCmd should have a Short description")
 	}
@@ -988,28 +1001,28 @@ func TestCreateDirectoriesError(t *testing.T) {
 	origAuraDir := auraDir
 	// Use a path that can't be created (e.g., inside /dev/null)
 	auraDir = "/dev/null/cannot/create/this"
-	
+
 	err := createDirectories()
 	if err == nil {
 		t.Error("createDirectories() should error for invalid path")
 	}
-	
+
 	auraDir = origAuraDir
 }
 
 func TestCopyConfigFilesPartial(t *testing.T) {
 	// Test with partially created directory structure
 	tempDir := t.TempDir()
-	
+
 	origAuraDir := auraDir
 	auraDir = tempDir
-	
+
 	// Don't create directories - should still work due to createDirectories
 	err := copyConfigFiles()
 	if err != nil {
 		t.Errorf("copyConfigFiles() failed: %v", err)
 	}
-	
+
 	auraDir = origAuraDir
 }
 
@@ -1050,7 +1063,7 @@ func TestCommandFlags(t *testing.T) {
 	if flag == nil {
 		t.Error("versionCmd should have verbose flag")
 	}
-	
+
 	// Test that logs command has follow flag
 	flag = logsCmd.Flags().Lookup("follow")
 	if flag == nil {
@@ -1068,41 +1081,41 @@ func TestConfigFilesNotEmpty(t *testing.T) {
 func TestInstallCommandWithSetup(t *testing.T) {
 	// Test install command with a mock setup script
 	tempDir := t.TempDir()
-	
+
 	origAuraDir := auraDir
 	auraDir = tempDir
-	
+
 	// Run install - it will copy configs and create directories
 	err := installCmd.RunE(installCmd, []string{})
 	// It will fail on running setup.sh, but that's OK - we've covered more code
-	
+
 	// The error is expected since setup.sh will fail
 	if err == nil {
 		t.Log("Install succeeded (unexpected but OK)")
 	}
-	
+
 	auraDir = origAuraDir
 }
 
 func TestUninstallCommandWithFiles(t *testing.T) {
 	// Test uninstall with some files present
 	tempDir := t.TempDir()
-	
+
 	origAuraDir := auraDir
 	auraDir = tempDir
-	
+
 	// Create some fake uninstall scripts
 	uninstallResolver := filepath.Join(tempDir, "uninstall-resolver.sh")
-	os.WriteFile(uninstallResolver, []byte("#!/bin/bash\necho 'test'\n"), filePermScript)
-	
+	_ = os.WriteFile(uninstallResolver, []byte("#!/bin/bash\necho 'test'\n"), filePermScript)
+
 	uninstallLoopback := filepath.Join(tempDir, "uninstall-loopback.sh")
-	os.WriteFile(uninstallLoopback, []byte("#!/bin/bash\necho 'test'\n"), filePermScript)
-	
+	_ = os.WriteFile(uninstallLoopback, []byte("#!/bin/bash\necho 'test'\n"), filePermScript)
+
 	// Run uninstall
 	err := uninstallCmd.RunE(uninstallCmd, []string{})
 	// May error but shouldn't panic
 	_ = err
-	
+
 	auraDir = origAuraDir
 }
 

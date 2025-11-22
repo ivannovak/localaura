@@ -90,6 +90,7 @@ var (
 ` + reset
 )
 
+//nolint:gochecknoinits // init required for platform check and auraDir initialization
 func init() {
 	// Check platform
 	if runtime.GOOS == "windows" {
@@ -572,7 +573,7 @@ func validateDomain(domain string) error {
 
 	labels := strings.Split(baseDomain, ".")
 	for _, label := range labels {
-		if len(label) == 0 {
+		if label == "" {
 			return fmt.Errorf("invalid domain: empty label")
 		}
 		if len(label) > 63 {

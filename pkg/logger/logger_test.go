@@ -8,6 +8,7 @@ import (
 )
 
 func TestInit(t *testing.T) {
+	//nolint:govet // fieldalignment: test struct clarity over memory optimization
 	tests := []struct {
 		name   string
 		config Config

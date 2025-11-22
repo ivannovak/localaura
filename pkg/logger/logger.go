@@ -22,6 +22,8 @@ const (
 )
 
 // Config for logger initialization
+//
+//nolint:govet // fieldalignment: readability over minor memory optimization
 type Config struct {
 	Level  Level
 	Format string // "text" or "json"
@@ -58,7 +60,7 @@ func Init(cfg Config) {
 	Log = slog.New(handler)
 }
 
-// Initialize with defaults if not already initialized
+//nolint:gochecknoinits // init required for default logger initialization
 func init() {
 	if Log == nil {
 		Init(Config{
